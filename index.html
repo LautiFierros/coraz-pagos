@@ -259,7 +259,10 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
     <!-- ---------- Tab: Caja hoy ---------- -->
     <section id="tab-caja" class="tab">
       <div class="card">
-        <h2>Estado del día</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h2 style="margin:0;">Estado del día</h2>
+          <span id="cajaUltimaActualizacion" class="mono" style="font-size:10.5px; color:var(--text-dim);"></span>
+        </div>
         <div id="cajaEstado" class="estado">
           <div class="spinner"></div>
           <div>Cargando caja…</div>
@@ -630,6 +633,12 @@ function fmtFecha(iso) {
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function fmtFechaHora(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' +
+         pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
 // Render de un estado de error reutilizable, con botón reintentar
 function renderError(contenedorId, mensaje, onReintentar) {
   const el = document.getElementById(contenedorId);
@@ -840,6 +849,7 @@ async function cargarCaja() {
   estadoEl.classList.remove('oculto', 'error');
   estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando caja…</div>`;
   semaforoEl.innerHTML = ''; kpisEl.innerHTML = ''; bucketsEl.innerHTML = '';
+  document.getElementById('cajaUltimaActualizacion').textContent = '';
 
   try {
     const resp = await fetchApi(SUPABASE_BASE + '/caja-proyeccion', { headers: { Authorization: AUTH } });
@@ -848,6 +858,7 @@ async function cargarCaja() {
     if (!data.ok) throw new Error(data.error || 'error desconocido');
 
     estadoEl.classList.add('oculto');
+    document.getElementById('cajaUltimaActualizacion').textContent = fmtFechaHora(new Date());
 
     const h = data.hoy;
 
