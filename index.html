@@ -470,20 +470,6 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
 </div>
 
 <!-- ============================================================
-     MODAL: Confirmación genérica (reemplaza confirm() nativo)
-     ============================================================ -->
-<div class="modal-overlay" id="modalConfirmar">
-  <div class="modal" style="position:relative; max-width:340px;">
-    <h2 id="confirmarTitulo" style="color:var(--text);">¿Confirmás?</h2>
-    <div id="confirmarMensaje" style="font-size:13px; color:var(--text-dim); margin-bottom:18px;"></div>
-    <div style="display:flex; gap:10px;">
-      <button class="btn secundario" id="confirmarCancelar" style="flex:1;">Cancelar</button>
-      <button class="btn peligro" id="confirmarAceptar" style="flex:1;">Confirmar</button>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================
      MODAL: Alta / edición de pago
      ============================================================ -->
 <div class="modal-overlay" id="modalPago">
@@ -526,7 +512,10 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
       </select>
     </div>
     <div id="pgError" style="color:var(--bad); font-size:12px; margin-bottom:10px; min-height:16px;"></div>
-    <button class="btn" id="btnGuardarPago" style="width:100%;">Guardar</button>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" id="btnGuardarPago" style="flex:1;">Guardar</button>
+      <button class="btn secundario oculto" id="btnRevertirPago" style="color:var(--text-dim);">↺ A pendiente</button>
+    </div>
   </div>
 </div>
 
@@ -544,6 +533,23 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
     <div style="display:flex; gap:10px; margin-top:18px;">
       <button class="btn secundario" id="btnVozRepetir" style="flex:1;">Repetir</button>
       <button class="btn" id="btnVozSiguiente" style="flex:1;" disabled>Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: Confirmación genérica (reemplaza confirm() nativo)
+     Va al final del DOM a propósito: así siempre queda apilada arriba
+     de cualquier otro modal que la dispare (ej. revertir dentro del
+     modal de Pago).
+     ============================================================ -->
+<div class="modal-overlay" id="modalConfirmar">
+  <div class="modal" style="position:relative; max-width:340px;">
+    <h2 id="confirmarTitulo" style="color:var(--text);">¿Confirmás?</h2>
+    <div id="confirmarMensaje" style="font-size:13px; color:var(--text-dim); margin-bottom:18px;"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn secundario" id="confirmarCancelar" style="flex:1;">Cancelar</button>
+      <button class="btn peligro" id="confirmarAceptar" style="flex:1;">Confirmar</button>
     </div>
   </div>
 </div>
@@ -940,7 +946,6 @@ function renderFilaPago(p) {
         </div>
       </div>
       ${puedeMarcar && !realizado ? `<button class="btn secundario" data-marcar-pagado="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
-      ${puedeMarcar && realizado ? `<button class="btn secundario" data-revertir-pago="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px; color:var(--text-dim);">↺ Volver a pendiente</button>` : ''}
     </div>
   `;
 }
@@ -964,8 +969,6 @@ document.getElementById('btnAplicarFiltros').addEventListener('click', () => {
 document.getElementById('pagosLista').addEventListener('click', (e) => {
   const btnMarcar = e.target.closest('[data-marcar-pagado]');
   if (btnMarcar) { marcarPagado(btnMarcar.dataset.marcarPagado); return; }
-  const btnRevertir = e.target.closest('[data-revertir-pago]');
-  if (btnRevertir) { revertirPago(btnRevertir.dataset.revertirPago); return; }
   const fila = e.target.closest('[data-editar]');
   if (fila) abrirModalPago(fila.dataset.editar);
 });
@@ -989,6 +992,7 @@ async function poblarSelectProveedores(seleccionado) {
 
 async function abrirModalPago(id) {
   const p = id ? PAGOS_CACHE.find(x => String(x.id) === String(id)) : null;
+  const realizado = p && (p.estado || '').toUpperCase() === 'REALIZADO';
   document.getElementById('modalPagoTitulo').textContent = p ? 'Editar pago' : 'Nuevo pago';
   document.getElementById('pgId').value = p ? p.id : '';
   document.getElementById('pgDescripcion').value = p ? (p.descripcion || '') : '';
@@ -997,6 +1001,8 @@ async function abrirModalPago(id) {
   document.getElementById('pgVencimiento').value = p ? (p.vencimiento || '') : '';
   document.getElementById('pgCategoria').value = p ? (p.categoria || '') : '';
   document.getElementById('pgError').textContent = '';
+  const puedeRevertir = realizado && USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
+  document.getElementById('btnRevertirPago').classList.toggle('oculto', !puedeRevertir);
   await poblarSelectProveedores(p ? p.proveedor_id : null);
   document.getElementById('modalPago').classList.add('show');
 }
@@ -1004,6 +1010,13 @@ async function abrirModalPago(id) {
 document.getElementById('btnNuevoPago').addEventListener('click', () => abrirModalPago(null));
 
 document.getElementById('btnGuardarPago').addEventListener('click', () => guardarPago());
+
+document.getElementById('btnRevertirPago').addEventListener('click', async () => {
+  const id = document.getElementById('pgId').value;
+  if (!id) return;
+  const ok = await revertirPago(id);
+  if (ok) document.getElementById('modalPago').classList.remove('show');
+});
 
 async function guardarPago(datosVoz) {
   const errEl = document.getElementById('pgError');
@@ -1065,7 +1078,7 @@ async function marcarPagado(id) {
 
 async function revertirPago(id) {
   const confirmado = await confirmarAccion('Vuelve a quedar como pendiente y se borra la fecha de pago registrada.', 'Volver a pendiente');
-  if (!confirmado) return;
+  if (!confirmado) return false;
   try {
     const resp = await fetchApi(SUPABASE_BASE + '/pagos-crud', {
       method: 'PUT',
@@ -1075,8 +1088,10 @@ async function revertirPago(id) {
     const data = await resp.json();
     if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
     cargarPagos();
+    return true;
   } catch (e) {
     alertInline('No se pudo revertir: ' + e.message);
+    return false;
   }
 }
 
