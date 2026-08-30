@@ -838,7 +838,8 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 
 const AYUDA_KPI_CAJA = {
   saldo: 'Saldo disponible hoy en tu cuenta de Mercado Pago, según el último dato sincronizado desde la API de MP.',
-  aLiberar: 'Plata que Mercado Pago te va a liberar (todavía retenida) según el calendario de liberaciones.',
+  aLiberar: 'Total de TODAS las liberaciones futuras de Mercado Pago retenidas, sin importar cuándo caen (puede incluir fechas a 60 días). No se usa para el semáforo de "te alcanza" — para eso se usa solo lo que libera dentro de 7 días.',
+  ingresos7d: 'De todo lo "a liberar", esto es lo que específicamente cae dentro de los próximos 7 días — es lo que realmente se usa para calcular si te alcanza.',
   vencidos: 'Suma de los pagos a proveedores cuyo vencimiento ya pasó y todavía no marcaste como pagados. Es deuda ya exigible, no proyectada.',
   pendiente7: 'Suma de los pagos a proveedores con vencimiento entre hoy y los próximos 7 días (sin contar los ya vencidos).',
   totalPendiente: 'Suma de TODOS los pagos pendientes, sin importar cuándo vencen — el panorama completo de lo que debés hoy.',
@@ -886,15 +887,16 @@ async function cargarCaja() {
 
     semaforoEl.innerHTML = avisoVencidos + (
       h.alcanza_7d
-        ? `<div class="badge ok" style="font-size:12px; padding:6px 12px;">✓ Te alcanza para lo vencido + próximos 7 días</div>`
-        : `<div class="badge bad" style="font-size:12px; padding:6px 12px;">⚠ No te alcanzaría para lo vencido + próximos 7 días</div>`
+        ? `<div class="badge ok" style="font-size:12px; padding:6px 12px;">✓ Con lo que liberás en 7 días + saldo, cubrís lo vencido + próx. 7 días</div>`
+        : `<div class="badge bad" style="font-size:12px; padding:6px 12px;">⚠ Lo que liberás en 7 días + saldo NO cubre lo vencido + próx. 7 días</div>`
     );
 
     document.getElementById('btnVerVencidos')?.addEventListener('click', () => irATab('alertas'));
 
     kpisEl.innerHTML =
       kpiHTML({ id:'caja-saldo', label:'Saldo MP disponible', valor: fmtARS(h.saldo_disponible), ayuda: AYUDA_KPI_CAJA.saldo }) +
-      kpiHTML({ id:'caja-liberar', label:'A liberar (MP)', valor: fmtARS(h.total_a_liberar), ayuda: AYUDA_KPI_CAJA.aLiberar }) +
+      kpiHTML({ id:'caja-ing7', label:'Liberan en 7 días', valor: fmtARS(h.ingresos_7d), ayuda: AYUDA_KPI_CAJA.ingresos7d }) +
+      kpiHTML({ id:'caja-liberar', label:'A liberar (total futuro)', valor: fmtARS(h.total_a_liberar), ayuda: AYUDA_KPI_CAJA.aLiberar }) +
       kpiHTML({ id:'caja-vencidos', label:'Vencidos', valor: `<span style="${h.vencidos.cantidad ? 'color:var(--bad);' : ''}">${fmtARS(h.vencidos.total)}</span>`, ayuda: AYUDA_KPI_CAJA.vencidos }) +
       kpiHTML({ id:'caja-pend7', label:'Próx. 7 días', valor: fmtARS(h.pendiente_7d), ayuda: AYUDA_KPI_CAJA.pendiente7 }) +
       kpiHTML({ id:'caja-totalpend', label:'Total pendiente', valor: fmtARS(h.total_pendiente), ayuda: AYUDA_KPI_CAJA.totalPendiente }) +
