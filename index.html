@@ -320,10 +320,11 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
 
       <div class="card">
         <h2>Listado <span id="pagosCount" style="color:var(--text-dim); text-transform:none; letter-spacing:0;"></span></h2>
-        <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
           <button class="btn" id="btnNuevoPago" style="flex:1; padding:10px; font-size:13px;">+ Nuevo pago</button>
           <button class="btn secundario" id="btnPagoPorVoz" style="padding:10px 14px; font-size:13px;">🎙️</button>
         </div>
+        <button class="btn secundario" id="btnCargarMesFijo" style="width:100%; margin-bottom:14px; padding:10px; font-size:13px;">📅 Cargar pagos fijos del mes</button>
         <div id="pagosEstado" class="estado">
           <div class="spinner"></div>
           <div>Cargando pagos…</div>
@@ -396,6 +397,19 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
           <div>Cargando usuarios…</div>
         </div>
         <div id="configLista"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h2 style="margin:0;">Pagos fijos mensuales</h2>
+          <button class="btn" id="btnNuevoPagoFijo" style="padding:8px 14px; font-size:13px;">+ Nuevo</button>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-dim); margin-bottom:12px;">Estas plantillas son las que se cargan con el botón "Cargar pagos fijos del mes" en la pestaña Pagos.</div>
+        <div id="pagosFijosEstado" class="estado">
+          <div class="spinner"></div>
+          <div>Cargando…</div>
+        </div>
+        <div id="pagosFijosLista"></div>
       </div>
     </section>
 
@@ -554,10 +568,60 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
 </div>
 
 <!-- ============================================================
+     MODAL: Alta / edición de pago fijo mensual
+     ============================================================ -->
+<div class="modal-overlay" id="modalPagoFijo">
+  <div class="modal" style="position:relative;">
+    <button class="cerrar" data-cerrar-modal="modalPagoFijo">×</button>
+    <h2 id="modalPagoFijoTitulo">Nuevo pago fijo</h2>
+    <input type="hidden" id="pfId">
+    <div class="field">
+      <label>Descripción *</label>
+      <input type="text" id="pfDescripcion" placeholder="Ej: alquiler del depósito">
+    </div>
+    <div class="field">
+      <label>Proveedor</label>
+      <select id="pfProveedor">
+        <option value="">Sin proveedor / texto libre</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Proveedor (texto libre)</label>
+      <input type="text" id="pfProveedorTexto" placeholder="Opcional si no está en la lista">
+    </div>
+    <div class="field">
+      <label>Importe *</label>
+      <input type="number" id="pfImporte" inputmode="decimal" placeholder="45000">
+    </div>
+    <div class="field">
+      <label>Día de vencimiento (1-28)</label>
+      <input type="number" id="pfDia" min="1" max="28" value="10">
+    </div>
+    <div class="field">
+      <label>Categoría</label>
+      <select id="pfCategoria">
+        <option value="">Sin categoría</option>
+        <option>Proveedores de productos</option>
+        <option>Logística y envíos</option>
+        <option>Financiero (préstamos, deudas)</option>
+        <option>RRHH (empleados + colaboradores)</option>
+        <option>Impuestos y cargas</option>
+        <option>Servicios generales</option>
+      </select>
+    </div>
+    <div id="pfError" style="color:var(--bad); font-size:12px; margin-bottom:10px; min-height:16px;"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" id="btnGuardarPagoFijo" style="flex:1;">Guardar</button>
+      <button class="btn peligro oculto" id="btnDarBajaPagoFijo">Desactivar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      MODAL: Confirmación genérica (reemplaza confirm() nativo)
      Va al final del DOM a propósito: así siempre queda apilada arriba
      de cualquier otro modal que la dispare (ej. revertir dentro del
-     modal de Pago).
+     modal de Pago, o desactivar un pago fijo).
      ============================================================ -->
 <div class="modal-overlay" id="modalConfirmar">
   <div class="modal" style="position:relative; max-width:340px;">
@@ -1024,6 +1088,30 @@ document.getElementById('btnAplicarFiltros').addEventListener('click', () => {
     categoria: document.getElementById('fCategoria').value,
     q: document.getElementById('fBusqueda').value.trim(),
   });
+});
+
+document.getElementById('btnCargarMesFijo').addEventListener('click', async () => {
+  const confirmado = await confirmarAccion('Se van a crear los pagos pendientes configurados en "Pagos fijos mensuales" (Configuración) que todavía no cargaste este mes. No duplica los que ya generaste.', 'Cargar pagos fijos del mes');
+  if (!confirmado) return;
+  const btn = document.getElementById('btnCargarMesFijo');
+  btn.disabled = true; btn.textContent = 'Cargando…';
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-fijos-generar', {
+      method: 'POST', headers: { Authorization: AUTH, 'Content-Type': 'application/json' }, body: '{}',
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    if (data.mensaje) {
+      alertInline(data.mensaje + ' — configurala en Configuración.');
+    } else {
+      alertInline(`Creados: ${data.creados.length}${data.omitidos.length ? ' · Ya estaban cargados: ' + data.omitidos.length : ''}`);
+    }
+    cargarPagos();
+  } catch (e) {
+    alertInline('No se pudo cargar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '📅 Cargar pagos fijos del mes';
+  }
 });
 
 /* ---------- Alta / edición de pago ---------- */
@@ -1548,7 +1636,143 @@ async function cargarConfig() {
   } catch (e) {
     renderError('configEstado', 'No se pudo cargar la configuración (' + e.message + ').', cargarConfig);
   }
+
+  cargarPagosFijos();
 }
+
+/* ---------- Pagos fijos mensuales (plantillas configurables) ---------- */
+
+let PAGOS_FIJOS_CACHE = [];
+
+async function cargarPagosFijos() {
+  const estadoEl = document.getElementById('pagosFijosEstado');
+  const listaEl = document.getElementById('pagosFijosLista');
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando…</div>`;
+  listaEl.innerHTML = '';
+
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-fijos-crud', { headers: { Authorization: AUTH } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    estadoEl.classList.add('oculto');
+    PAGOS_FIJOS_CACHE = data.pagos_fijos;
+
+    if (data.pagos_fijos.length === 0) {
+      listaEl.innerHTML = `<div class="estado"><div style="font-size:20px;">🗂️</div><div>Todavía no configuraste pagos fijos.</div></div>`;
+      return;
+    }
+
+    listaEl.innerHTML = data.pagos_fijos.map(pf => `
+      <div class="pf-fila" data-id="${pf.id}" style="padding:12px 0; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px; cursor:pointer;">
+        <div style="min-width:0;">
+          <div style="font-size:13px; color:var(--text);">${escapeHtml(pf.descripcion)}</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(pf.proveedor_nro || 'Sin proveedor')} · vence el día ${pf.dia_vencimiento}</div>
+        </div>
+        <div class="mono" style="font-size:13px; color:var(--amber); flex:none;">${fmtARS(pf.importe)}</div>
+      </div>
+    `).join('');
+
+    listaEl.querySelectorAll('.pf-fila').forEach(fila => {
+      fila.addEventListener('click', () => abrirModalPagoFijo(fila.dataset.id));
+    });
+  } catch (e) {
+    renderError('pagosFijosEstado', 'No se pudo cargar (' + e.message + ').', cargarPagosFijos);
+  }
+}
+
+document.getElementById('btnNuevoPagoFijo').addEventListener('click', () => abrirModalPagoFijo(null));
+
+async function abrirModalPagoFijo(id) {
+  const pf = id ? PAGOS_FIJOS_CACHE.find(x => x.id === id) : null;
+  document.getElementById('modalPagoFijoTitulo').textContent = pf ? 'Editar pago fijo' : 'Nuevo pago fijo';
+  document.getElementById('pfId').value = pf ? pf.id : '';
+  document.getElementById('pfDescripcion').value = pf ? pf.descripcion : '';
+  document.getElementById('pfProveedorTexto').value = pf ? (pf.proveedor_nro || '') : '';
+  document.getElementById('pfImporte').value = pf ? pf.importe : '';
+  document.getElementById('pfDia').value = pf ? pf.dia_vencimiento : 10;
+  document.getElementById('pfCategoria').value = pf ? (pf.categoria || '') : '';
+  document.getElementById('pfError').textContent = '';
+  document.getElementById('btnDarBajaPagoFijo').classList.toggle('oculto', !pf);
+
+  const sel = document.getElementById('pfProveedor');
+  sel.innerHTML = '<option value="">Sin proveedor / texto libre</option>';
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/proveedores-crud', { headers: { Authorization: AUTH } });
+    const dataProv = await resp.json();
+    if (dataProv.ok) {
+      dataProv.proveedores.forEach(p => {
+        const op = document.createElement('option');
+        op.value = p.id; op.textContent = p.nombre;
+        if (pf && p.id === pf.proveedor_id) op.selected = true;
+        sel.appendChild(op);
+      });
+    }
+  } catch (e) { /* select queda con la opción libre nomás */ }
+
+  document.getElementById('modalPagoFijo').classList.add('show');
+}
+
+document.getElementById('btnGuardarPagoFijo').addEventListener('click', async () => {
+  const errEl = document.getElementById('pfError');
+  const btn = document.getElementById('btnGuardarPagoFijo');
+  const id = document.getElementById('pfId').value;
+  const descripcion = document.getElementById('pfDescripcion').value.trim();
+  const importe = Number(document.getElementById('pfImporte').value);
+  errEl.textContent = '';
+
+  if (!descripcion) { errEl.textContent = 'La descripción es obligatoria.'; return; }
+  if (!importe || importe <= 0) { errEl.textContent = 'El importe tiene que ser mayor a 0.'; return; }
+
+  const payload = {
+    descripcion,
+    importe,
+    proveedor_id: document.getElementById('pfProveedor').value || null,
+    proveedor_nro: document.getElementById('pfProveedorTexto').value.trim() || null,
+    dia_vencimiento: Number(document.getElementById('pfDia').value) || 10,
+    categoria: document.getElementById('pfCategoria').value || null,
+  };
+  if (id) payload.id = id;
+
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-fijos-crud', {
+      method: id ? 'PUT' : 'POST',
+      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    document.getElementById('modalPagoFijo').classList.remove('show');
+    cargarPagosFijos();
+  } catch (e) {
+    errEl.textContent = 'No se pudo guardar: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+});
+
+document.getElementById('btnDarBajaPagoFijo').addEventListener('click', async () => {
+  const id = document.getElementById('pfId').value;
+  if (!id) return;
+  const confirmado = await confirmarAccion('Deja de generarse con el botón "Cargar pagos fijos del mes". No borra los pagos ya creados.', 'Desactivar pago fijo');
+  if (!confirmado) return;
+  const btn = document.getElementById('btnDarBajaPagoFijo');
+  btn.disabled = true;
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-fijos-crud?id=' + encodeURIComponent(id), { method: 'DELETE', headers: { Authorization: AUTH } });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    document.getElementById('modalPagoFijo').classList.remove('show');
+    cargarPagosFijos();
+  } catch (e) {
+    document.getElementById('pfError').textContent = 'No se pudo desactivar: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 async function guardarPermiso(userId, permiso, valor, checkboxEl) {
   checkboxEl.disabled = true;
