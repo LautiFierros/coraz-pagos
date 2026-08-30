@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>CORAZ · Caja y Pagos</title>
+<link rel="icon" href="data:,">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ============================================================
+   CONFIG VISUAL — identidad CORAZ (misma paleta que coraz-scanner
+   y coraz-stock: fondo oscuro, acento ámbar, tipografía de sistema
+   + mono para números/códigos)
+   ============================================================ */
+:root{
+  --bg: #14120f;
+  --panel: #1d1a15;
+  --panel-2: #262119;
+  --line: #3a3226;
+  --amber: #e8891a;
+  --amber-dim: #8a5518;
+  --text: #f2ede2;
+  --text-dim: #a89e8c;
+  --ok: #4a9d5f;
+  --bad: #c14b3a;
+  --warn: #d4a12a;
+  --info: #4a8a9d;
+  --radius: 10px;
+  --radius-sm: 7px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; }
+body{
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  padding-bottom: 76px; /* espacio para nav inferior fija */
+  min-height: 100vh;
+}
+.mono { font-family: "SF Mono", "Consolas", monospace; }
+a { color: var(--amber); }
+
+/* -------------------- Header -------------------- */
+header{
+  position: sticky; top:0; z-index: 20;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  padding: 14px 16px; display:flex; align-items:center; justify-content:space-between;
+}
+header h1{
+  font-size: 15px; letter-spacing:.12em; text-transform:uppercase;
+  margin:0; color: var(--amber); font-weight:700;
+}
+header h1 span{ color: var(--text-dim); font-weight:400; letter-spacing:.04em; }
+#userChip{
+  font-size: 11px; color: var(--text-dim); display:flex; align-items:center; gap:8px;
+}
+#userChip button{
+  background:none; border:1px solid var(--line); color: var(--text-dim);
+  border-radius: 99px; padding:4px 10px; font-size:11px; cursor:pointer;
+}
+#userChip button:hover{ border-color: var(--amber); color: var(--amber); }
+
+/* -------------------- Layout general -------------------- */
+main{ padding: 16px; max-width: 720px; margin: 0 auto; }
+.card{
+  background: var(--panel); border:1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 14px;
+}
+.card h2{
+  font-size: 13px; text-transform:uppercase; letter-spacing:.08em; color: var(--text-dim);
+  margin: 0 0 12px; display:flex; align-items:center; gap:8px;
+}
+
+/* -------------------- Estados: loading / vacío / error -------------------- */
+.estado{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; padding: 32px 16px; color: var(--text-dim); text-align:center; font-size: 13px;
+}
+.estado.error{ color: var(--bad); }
+.spinner{
+  width:22px; height:22px; border-radius:50%;
+  border:2px solid var(--line); border-top-color: var(--amber);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+.btn-reintentar{
+  background:none; border:1px solid var(--line); color: var(--text);
+  border-radius: var(--radius-sm); padding:8px 14px; font-size:12px; cursor:pointer;
+}
+.btn-reintentar:hover{ border-color: var(--amber); color: var(--amber); }
+
+/* -------------------- KPI con ayuda "?" -------------------- */
+.kpi{
+  display:flex; flex-direction:column; gap:4px; position:relative;
+}
+.kpi-label{
+  font-size: 11px; text-transform:uppercase; letter-spacing:.06em; color: var(--text-dim);
+  display:flex; align-items:center; gap:6px;
+}
+.kpi-valor{ font-size: 26px; font-weight:700; font-family:"SF Mono","Consolas",monospace; }
+.kpi-help{
+  width:15px; height:15px; border-radius:50%; border:1px solid var(--text-dim);
+  color: var(--text-dim); font-size:10px; display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer; flex:none; background:none;
+}
+.kpi-help:hover{ border-color: var(--amber); color: var(--amber); }
+.kpi-pop{
+  display:none; position:absolute; top: 100%; left:0; margin-top:6px; z-index: 30;
+  background: var(--panel-2); border:1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 11.5px; color: var(--text-dim); line-height:1.5; width: 240px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4);
+}
+.kpi-pop.show{ display:block; }
+
+/* -------------------- Botones -------------------- */
+.btn{
+  background: var(--amber); color:#1a1208; border:none; border-radius: var(--radius-sm);
+  padding: 11px 16px; font-size: 14px; font-weight:600; cursor:pointer;
+}
+.btn:hover{ background:#f39a2b; }
+.btn:disabled{ background: var(--amber-dim); cursor:not-allowed; opacity:.6; }
+.btn.secundario{
+  background:none; border:1px solid var(--line); color: var(--text);
+}
+.btn.secundario:hover{ border-color: var(--amber); color: var(--amber); }
+.btn.peligro{ background: var(--bad); color:#fff; }
+
+/* -------------------- Badges -------------------- */
+.badge{
+  display:inline-block; font-size:10px; padding:3px 8px; border-radius:99px;
+  text-transform:uppercase; letter-spacing:.05em;
+}
+.badge.ok{ background: rgba(74,157,95,.15); color: var(--ok); }
+.badge.bad{ background: rgba(193,75,58,.15); color: var(--bad); }
+.badge.warn{ background: rgba(212,161,42,.15); color: var(--warn); }
+
+/* -------------------- Navegación inferior -------------------- */
+nav.tabbar{
+  position: fixed; bottom:0; left:0; right:0; z-index: 20;
+  background: var(--panel); border-top:1px solid var(--line);
+  display:flex; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+nav.tabbar button{
+  flex:1; background:none; border:none; color: var(--text-dim);
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  font-size: 9.5px; text-transform:uppercase; letter-spacing:.04em;
+  padding: 6px 2px; cursor:pointer; border-radius: var(--radius-sm);
+}
+nav.tabbar button .ico{ font-size:17px; line-height:1; }
+nav.tabbar button.activo{ color: var(--amber); }
+nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
+
+/* -------------------- Login gate -------------------- */
+#gate{
+  position: fixed; inset:0; z-index: 100; background: var(--bg);
+  display:flex; align-items:center; justify-content:center; padding: 24px;
+}
+#gate .box{ width:100%; max-width: 340px; }
+#gate h1{
+  text-align:center; font-size:16px; letter-spacing:.12em; text-transform:uppercase;
+  color: var(--amber); margin: 0 0 4px;
+}
+#gate .sub{ text-align:center; color: var(--text-dim); font-size:12px; margin-bottom:24px; }
+.field{ margin-bottom: 12px; }
+.field label{
+  display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+  color: var(--text-dim); margin-bottom:5px;
+}
+.field input, .field select, .field textarea{
+  width:100%; background: var(--panel-2); border:1px solid var(--line); color: var(--text);
+  padding:11px 10px; border-radius: var(--radius-sm); font-size:16px; font-family:inherit;
+}
+.field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color: var(--amber); }
+#gateError{ color: var(--bad); font-size:12px; text-align:center; margin-top:10px; min-height:16px; }
+
+/* -------------------- Modal genérico -------------------- */
+.modal-overlay{
+  position: fixed; inset:0; z-index: 90; background: rgba(0,0,0,.6);
+  display:none; align-items:flex-end; justify-content:center;
+}
+.modal-overlay.show{ display:flex; }
+.modal{
+  background: var(--panel); border:1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0;
+  width:100%; max-width: 480px; max-height: 88vh; overflow-y:auto; padding: 20px;
+}
+@media (min-width: 560px){
+  .modal-overlay{ align-items:center; }
+  .modal{ border-radius: var(--radius); }
+}
+.modal h2{ font-size:14px; text-transform:uppercase; letter-spacing:.08em; color: var(--amber); margin:0 0 14px; }
+.modal .cerrar{
+  position:absolute; top:14px; right:16px; background:none; border:none; color: var(--text-dim);
+  font-size:20px; cursor:pointer; line-height:1;
+}
+
+/* -------------------- Guard CDN caído -------------------- */
+#cdnFail{
+  position:fixed; inset:0; z-index:200; background: var(--bg); color: var(--text);
+  display:none; align-items:center; justify-content:center; text-align:center; padding:24px;
+}
+#cdnFail.show{ display:flex; }
+
+.oculto{ display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     GUARD: si el CDN de Supabase no cargó, mostrar mensaje claro
+     en vez de dejar la pantalla en blanco (premisa robustez)
+     ============================================================ -->
+<div id="cdnFail">
+  <div>
+    <div style="font-size:32px; margin-bottom:12px;">⚠️</div>
+    <div style="color:var(--text); font-size:14px; margin-bottom:8px;">No se pudo cargar un recurso necesario</div>
+    <div style="color:var(--text-dim); font-size:12px; margin-bottom:16px;">Revisá tu conexión a internet y volvé a intentar.</div>
+    <button class="btn" onclick="location.reload()">Reintentar</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     LOGIN GATE
+     ============================================================ -->
+<div id="gate">
+  <div class="box">
+    <h1>CORAZ · Caja y Pagos</h1>
+    <div class="sub">Iniciá sesión con tu cuenta CORAZ</div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="gateEmail" autocomplete="username" inputmode="email">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="gatePass" autocomplete="current-password">
+    </div>
+    <button class="btn" id="gateBtn" style="width:100%;">Ingresar</button>
+    <div id="gateError"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP (oculta hasta login)
+     ============================================================ -->
+<div id="app" class="oculto">
+
+  <header>
+    <h1>CORAZ <span>· Caja y Pagos</span></h1>
+    <div id="userChip">
+      <span id="userNombre"></span>
+      <button id="btnFuncionamiento" title="Cómo funciona la app">?</button>
+      <button id="btnLogout">Salir</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ---------- Tab: Caja hoy ---------- -->
+    <section id="tab-caja" class="tab">
+      <div class="card">
+        <h2>Estado del día</h2>
+        <div id="cajaEstado" class="estado">
+          <div class="spinner"></div>
+          <div>Cargando caja…</div>
+        </div>
+        <div id="cajaSemaforo"></div>
+        <div id="cajaKpis" style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Proyección rápida</h2>
+        <div id="cajaBuckets" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </section>
+
+    <!-- ---------- Tab: Pagos ---------- -->
+    <section id="tab-pagos" class="tab oculto">
+
+      <div class="card">
+        <div id="pagosResumen" style="display:grid; grid-template-columns:1fr 1fr; gap:14px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Filtros</h2>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="field" style="margin-bottom:0;">
+            <label>Estado</label>
+            <select id="fEstado">
+              <option value="">Todos</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="REALIZADO">Pagado</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Categoría</label>
+            <select id="fCategoria">
+              <option value="">Todas</option>
+              <option>Proveedores de productos</option>
+              <option>Logística y envíos</option>
+              <option>Financiero (préstamos, deudas)</option>
+              <option>RRHH (empleados + colaboradores)</option>
+              <option>Impuestos y cargas</option>
+              <option>Servicios generales</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-top:10px; margin-bottom:0;">
+          <label>Buscar (proveedor o descripción)</label>
+          <input type="text" id="fBusqueda" placeholder="Ej: Rulman Sur">
+        </div>
+        <button class="btn secundario" id="btnAplicarFiltros" style="width:100%; margin-top:12px;">Aplicar filtros</button>
+      </div>
+
+      <div class="card">
+        <h2>Listado <span id="pagosCount" style="color:var(--text-dim); text-transform:none; letter-spacing:0;"></span></h2>
+        <div style="display:flex; gap:8px; margin-bottom:14px;">
+          <button class="btn" id="btnNuevoPago" style="flex:1; padding:10px; font-size:13px;">+ Nuevo pago</button>
+          <button class="btn secundario" id="btnPagoPorVoz" style="padding:10px 14px; font-size:13px;">🎙️</button>
+        </div>
+        <div id="pagosEstado" class="estado">
+          <div class="spinner"></div>
+          <div>Cargando pagos…</div>
+        </div>
+        <div id="pagosLista"></div>
+      </div>
+
+    </section>
+
+    <!-- ---------- Tab: Proveedores ---------- -->
+    <section id="tab-proveedores" class="tab oculto">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h2 style="margin:0;">Proveedores <span id="provCount" style="color:var(--text-dim); text-transform:none; letter-spacing:0;"></span></h2>
+          <button class="btn" id="btnNuevoProveedor" style="padding:8px 14px; font-size:13px;">+ Nuevo</button>
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <input type="text" id="provBusqueda" placeholder="Buscar por nombre o CUIT…">
+        </div>
+        <div id="provEstado" class="estado">
+          <div class="spinner"></div>
+          <div>Cargando proveedores…</div>
+        </div>
+        <div id="provLista"></div>
+      </div>
+    </section>
+
+    <!-- ---------- Tab: Proyección ---------- -->
+    <section id="tab-proyeccion" class="tab oculto">
+      <div class="card">
+        <h2>Proyección 30 / 60 / 90 días</h2>
+        <div id="proyEstado" class="estado">
+          <div class="spinner"></div>
+          <div>Calculando proyección…</div>
+        </div>
+        <div id="proyGrafico" style="display:flex; align-items:flex-end; gap:8px; height:140px; margin:8px 0 18px;"></div>
+        <div id="proyTabla"></div>
+      </div>
+    </section>
+
+    <!-- ---------- Tab: Alertas ---------- -->
+    <section id="tab-alertas" class="tab oculto">
+      <div class="card">
+        <h2>Vencidos</h2>
+        <div id="alertasVencidosEstado" class="estado">
+          <div class="spinner"></div><div>Revisando…</div>
+        </div>
+        <div id="alertasVencidos"></div>
+      </div>
+      <div class="card">
+        <h2>Por vencer en 7 días</h2>
+        <div id="alertas7"></div>
+      </div>
+      <div class="card">
+        <h2>Por vencer en 15 días</h2>
+        <div id="alertas15"></div>
+      </div>
+    </section>
+
+    <!-- ---------- Tab: Configuración (solo admin) ---------- -->
+    <section id="tab-config" class="tab oculto">
+      <div class="card">
+        <h2>Permisos por usuario</h2>
+        <div id="configEstado" class="estado">
+          <div class="spinner"></div>
+          <div>Cargando usuarios…</div>
+        </div>
+        <div id="configLista"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="tabbar">
+    <button data-tab="caja" class="activo"><span class="ico">💰</span>Caja</button>
+    <button data-tab="pagos"><span class="ico">📋</span>Pagos</button>
+    <button data-tab="proveedores"><span class="ico">🏢</span>Proveed.</button>
+    <button data-tab="proyeccion"><span class="ico">📈</span>Proyecc.</button>
+    <button data-tab="alertas"><span class="ico">🔔</span>Alertas</button>
+    <button data-tab="config" id="navConfig" class="oculto"><span class="ico">⚙️</span>Config</button>
+  </nav>
+
+</div>
+
+<!-- ============================================================
+     MODAL: Funcionamiento de la app
+     ============================================================ -->
+<div class="modal-overlay" id="modalFuncionamiento">
+  <div class="modal" style="position:relative;">
+    <button class="cerrar" data-cerrar-modal="modalFuncionamiento">×</button>
+    <h2>Funcionamiento de la app</h2>
+    <div style="font-size:13px; line-height:1.6; color:var(--text-dim);">
+      <p><b style="color:var(--text)">¿Qué es esto?</b> Control de caja y pagos a proveedores de CORAZ Autopartes. Reemplaza la hoja PAGOS del Excel maestro: acá es donde se cargan y consultan los pagos de ahora en adelante.</p>
+      <p><b style="color:var(--text)">💰 Caja hoy</b> — cruza el saldo disponible y las liberaciones pendientes de Mercado Pago contra los pagos por vencer, para saber si te alcanza.</p>
+      <p><b style="color:var(--text)">📋 Pagos</b> — listado de pagos con filtros, alta manual o por voz, marcar como pagado.</p>
+      <p><b style="color:var(--text)">🏢 Proveedores</b> — ficha de cada proveedor: condición de pago, contacto, historial.</p>
+      <p><b style="color:var(--text)">📈 Proyección</b> — cómo va a evolucionar la caja en los próximos 30/60/90 días.</p>
+      <p><b style="color:var(--text)">🔔 Alertas</b> — pagos vencidos o por vencer, ordenados por urgencia.</p>
+      <p style="margin-top:14px; font-size:11px;">Todo número en pantalla tiene un ícono "?" al lado — tocalo para ver cómo se calcula y de dónde sale el dato.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: Alta / edición de proveedor
+     ============================================================ -->
+<div class="modal-overlay" id="modalProveedor">
+  <div class="modal" style="position:relative;">
+    <button class="cerrar" data-cerrar-modal="modalProveedor">×</button>
+    <h2 id="modalProveedorTitulo">Nuevo proveedor</h2>
+    <input type="hidden" id="pvId">
+    <div class="field">
+      <label>Nombre *</label>
+      <input type="text" id="pvNombre" placeholder="Ej: Rulman Sur">
+    </div>
+    <div class="field">
+      <label>CUIT</label>
+      <input type="text" id="pvCuit" placeholder="30-12345678-9">
+    </div>
+    <div class="field">
+      <label>Condición de pago</label>
+      <input type="text" id="pvCondicion" placeholder="Ej: contado, 30 días">
+    </div>
+    <div class="field">
+      <label>Contacto</label>
+      <input type="text" id="pvContacto" placeholder="Teléfono o email">
+    </div>
+    <div class="field">
+      <label>Categoría</label>
+      <select id="pvCategoria">
+        <option value="">Sin categoría</option>
+        <option>Proveedores de productos</option>
+        <option>Logística y envíos</option>
+        <option>Financiero (préstamos, deudas)</option>
+        <option>RRHH (empleados + colaboradores)</option>
+        <option>Impuestos y cargas</option>
+        <option>Servicios generales</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Notas</label>
+      <textarea id="pvNotas" rows="2"></textarea>
+    </div>
+    <div id="pvError" style="color:var(--bad); font-size:12px; margin-bottom:10px; min-height:16px;"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" id="btnGuardarProveedor" style="flex:1;">Guardar</button>
+      <button class="btn peligro oculto" id="btnDarBajaProveedor">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: Confirmación genérica (reemplaza confirm() nativo)
+     ============================================================ -->
+<div class="modal-overlay" id="modalConfirmar">
+  <div class="modal" style="position:relative; max-width:340px;">
+    <h2 id="confirmarTitulo" style="color:var(--text);">¿Confirmás?</h2>
+    <div id="confirmarMensaje" style="font-size:13px; color:var(--text-dim); margin-bottom:18px;"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn secundario" id="confirmarCancelar" style="flex:1;">Cancelar</button>
+      <button class="btn peligro" id="confirmarAceptar" style="flex:1;">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: Alta / edición de pago
+     ============================================================ -->
+<div class="modal-overlay" id="modalPago">
+  <div class="modal" style="position:relative;">
+    <button class="cerrar" data-cerrar-modal="modalPago">×</button>
+    <h2 id="modalPagoTitulo">Nuevo pago</h2>
+    <input type="hidden" id="pgId">
+    <div class="field">
+      <label>Descripción</label>
+      <input type="text" id="pgDescripcion" placeholder="Ej: compra rodamientos">
+    </div>
+    <div class="field">
+      <label>Proveedor</label>
+      <select id="pgProveedor">
+        <option value="">Sin proveedor / texto libre</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Proveedor (texto libre, si no está en la lista)</label>
+      <input type="text" id="pgProveedorTexto" placeholder="Ej: Rulman Sur">
+    </div>
+    <div class="field">
+      <label>Importe *</label>
+      <input type="number" id="pgImporte" inputmode="decimal" placeholder="45000">
+    </div>
+    <div class="field">
+      <label>Vencimiento</label>
+      <input type="date" id="pgVencimiento">
+    </div>
+    <div class="field">
+      <label>Categoría</label>
+      <select id="pgCategoria">
+        <option value="">Sin categoría</option>
+        <option>Proveedores de productos</option>
+        <option>Logística y envíos</option>
+        <option>Financiero (préstamos, deudas)</option>
+        <option>RRHH (empleados + colaboradores)</option>
+        <option>Impuestos y cargas</option>
+        <option>Servicios generales</option>
+      </select>
+    </div>
+    <div id="pgError" style="color:var(--bad); font-size:12px; margin-bottom:10px; min-height:16px;"></div>
+    <button class="btn" id="btnGuardarPago" style="width:100%;">Guardar</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: Carga por voz guiada (sin LLM, gratis)
+     ============================================================ -->
+<div class="modal-overlay" id="modalVoz">
+  <div class="modal" style="position:relative; text-align:center;">
+    <button class="cerrar" data-cerrar-modal="modalVoz">×</button>
+    <h2 id="vozCampoTitulo">💰 Monto</h2>
+    <div style="font-size:12px; color:var(--text-dim); margin-bottom:18px;">Tocá el micrófono y decilo en voz alta</div>
+    <button id="btnVozMic" style="width:72px; height:72px; border-radius:50%; background:var(--amber); border:none; font-size:28px; cursor:pointer;">🎙️</button>
+    <div id="vozEstado" style="font-size:12px; color:var(--text-dim); margin-top:14px; min-height:16px;"></div>
+    <div id="vozResultado" style="font-size:18px; color:var(--text); margin-top:8px; min-height:26px;"></div>
+    <div style="display:flex; gap:10px; margin-top:18px;">
+      <button class="btn secundario" id="btnVozRepetir" style="flex:1;">Repetir</button>
+      <button class="btn" id="btnVozSiguiente" style="flex:1;" disabled>Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const SUPABASE_URL = 'https://kvewsxrfogosjwehookj.supabase.co';
+const SUPABASE_BASE = SUPABASE_URL + '/functions/v1';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXdzeHJmb2dvc2p3ZWhvb2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3OTA2OTksImV4cCI6MjEwMTM2NjY5OX0.6oyDPFG_8hAAULXCUn6uO7C-abxMSOxxMFFJ_xBFZHY';
+
+// Guard: si el script de supabase-js no cargó (CDN caído), avisar en vez de romper todo
+if (typeof window.supabase === 'undefined') {
+  document.getElementById('cdnFail').classList.add('show');
+  throw new Error('supabase-js no cargó desde el CDN');
+}
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+let AUTH = null;        // 'Bearer <access_token>' — se setea/refresca solo via onAuthStateChange
+let USUARIO = null;     // { email, es_admin, permisos }
+let TAB_ACTUAL = 'caja';
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+// Fetch robusto: timeout + reintentos ante error de servidor/red (premisa robustez)
+async function fetchApi(url, opciones = {}, { timeout = 15000, reintentos = 1 } = {}) {
+  let ultimoError;
+  for (let intento = 0; intento <= reintentos; intento++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const resp = await fetch(url, { ...opciones, signal: controller.signal });
+      clearTimeout(timer);
+      if (resp.status >= 500 && intento < reintentos) {
+        ultimoError = new Error('HTTP ' + resp.status);
+        await new Promise(r => setTimeout(r, 600 * (intento + 1)));
+        continue;
+      }
+      return resp;
+    } catch (e) {
+      clearTimeout(timer);
+      ultimoError = (e && e.name === 'AbortError')
+        ? new Error('se agotó el tiempo de espera (' + (timeout / 1000) + 's)')
+        : e;
+      if (intento < reintentos) { await new Promise(r => setTimeout(r, 600 * (intento + 1))); continue; }
+      throw ultimoError;
+    }
+  }
+  throw ultimoError;
+}
+
+function fmtARS(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
+}
+
+function fmtFecha(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Render de un estado de error reutilizable, con botón reintentar
+function renderError(contenedorId, mensaje, onReintentar) {
+  const el = document.getElementById(contenedorId);
+  el.classList.remove('oculto');
+  el.classList.add('error');
+  el.innerHTML = `
+    <div style="font-size:22px;">⚠️</div>
+    <div>${mensaje}</div>
+    <button class="btn-reintentar">Reintentar</button>
+  `;
+  el.querySelector('.btn-reintentar').addEventListener('click', onReintentar);
+}
+
+function renderVacio(contenedorId, mensaje) {
+  const el = document.getElementById(contenedorId);
+  el.classList.remove('oculto', 'error');
+  el.innerHTML = `<div style="font-size:22px;">🗂️</div><div>${mensaje}</div>`;
+}
+
+// Arma un KPI con su ícono "?" (premisa 7 — obligatorio en todo número visible)
+function kpiHTML({ id, label, valor, ayuda }) {
+  return `
+    <div class="kpi">
+      <div class="kpi-label">
+        ${label}
+        <button class="kpi-help" data-kpi-help="${id}">?</button>
+      </div>
+      <div class="kpi-valor">${valor}</div>
+      <div class="kpi-pop" id="pop-${id}">${ayuda}</div>
+    </div>
+  `;
+}
+
+// Delegación de eventos para todos los popovers de KPI (funciona con contenido que se re-renderiza)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-kpi-help]');
+  document.querySelectorAll('.kpi-pop.show').forEach(p => { if (!btn || p.id !== 'pop-' + btn.dataset.kpiHelp) p.classList.remove('show'); });
+  if (btn) {
+    document.getElementById('pop-' + btn.dataset.kpiHelp)?.classList.toggle('show');
+    return;
+  }
+  if (!e.target.closest('.kpi-pop')) {
+    document.querySelectorAll('.kpi-pop.show').forEach(p => p.classList.remove('show'));
+  }
+});
+
+// Reemplaza confirm() nativo — devuelve una Promise<boolean>. Uso: if (await confirmarAccion('¿Seguro?')) {...}
+function confirmarAccion(mensaje, titulo = '¿Confirmás?') {
+  return new Promise((resolve) => {
+    document.getElementById('confirmarTitulo').textContent = titulo;
+    document.getElementById('confirmarMensaje').textContent = mensaje;
+    document.getElementById('modalConfirmar').classList.add('show');
+    const btnSi = document.getElementById('confirmarAceptar');
+    const btnNo = document.getElementById('confirmarCancelar');
+    function limpiar() {
+      document.getElementById('modalConfirmar').classList.remove('show');
+      btnSi.removeEventListener('click', onSi);
+      btnNo.removeEventListener('click', onNo);
+    }
+    function onSi() { limpiar(); resolve(true); }
+    function onNo() { limpiar(); resolve(false); }
+    btnSi.addEventListener('click', onSi);
+    btnNo.addEventListener('click', onNo);
+  });
+}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+document.getElementById('gateBtn').addEventListener('click', hacerLogin);
+document.getElementById('gatePass').addEventListener('keydown', (e) => { if (e.key === 'Enter') hacerLogin(); });
+
+async function hacerLogin() {
+  const email = document.getElementById('gateEmail').value.trim();
+  const password = document.getElementById('gatePass').value;
+  const errEl = document.getElementById('gateError');
+  const btn = document.getElementById('gateBtn');
+  errEl.textContent = '';
+
+  if (!email || !password) { errEl.textContent = 'Completá email y contraseña.'; return; }
+
+  btn.disabled = true; btn.textContent = 'Ingresando…';
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    // el resto (setear AUTH, cargar usuario, mostrar app) lo maneja onAuthStateChange
+  } catch (e) {
+    errEl.textContent = 'No se pudo iniciar sesión. Revisá tus datos.';
+    btn.disabled = false; btn.textContent = 'Ingresar';
+  }
+}
+
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  await sb.auth.signOut();
+});
+
+sb.auth.onAuthStateChange(async (_event, session) => {
+  if (session) {
+    AUTH = 'Bearer ' + session.access_token;
+    document.getElementById('gate').classList.add('oculto');
+    document.getElementById('app').classList.remove('oculto');
+    await cargarUsuarioYArrancar(session.user.email);
+  } else {
+    AUTH = null; USUARIO = null;
+    document.getElementById('app').classList.add('oculto');
+    document.getElementById('gate').classList.remove('oculto');
+    document.getElementById('gateBtn').disabled = false;
+    document.getElementById('gateBtn').textContent = 'Ingresar';
+  }
+});
+
+sb.auth.getSession(); // dispara onAuthStateChange si ya había sesión guardada
+
+/* ============================================================
+   USUARIO / PERMISOS
+   TODO: reemplazar por llamada real a Edge Function cuando esté
+   creada (por ahora placeholder: todos entran como admin para
+   poder seguir armando la app; se ajusta cuando exista
+   `usuarios-permisos` + columnas es_admin/permisos en app_usuarios)
+   ============================================================ */
+async function cargarUsuarioYArrancar(email) {
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/usuarios-permisos', { headers: { Authorization: AUTH } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    USUARIO = {
+      email: data.yo?.email || email,
+      es_admin: !!data.yo?.es_admin,
+      permisos: data.yo?.permisos || { ver_caja: true, gestionar_proveedores: true, marcar_pagado: true },
+    };
+  } catch (e) {
+    // Si falla la carga de permisos, entramos en modo restringido (nunca abrimos de más ante un error)
+    console.error('No se pudieron cargar los permisos:', e);
+    USUARIO = { email, es_admin: false, permisos: { ver_caja: true, gestionar_proveedores: false, marcar_pagado: false } };
+  }
+
+  document.getElementById('userNombre').textContent = USUARIO.email.split('@')[0];
+  document.getElementById('navConfig').classList.toggle('oculto', !USUARIO.es_admin);
+  document.querySelector('nav.tabbar button[data-tab="caja"]').classList.toggle('oculto', !USUARIO.permisos.ver_caja);
+  document.getElementById('btnNuevoProveedor').classList.toggle('oculto', !(USUARIO.es_admin || USUARIO.permisos.gestionar_proveedores));
+
+  if (!USUARIO.permisos.ver_caja && TAB_ACTUAL === 'caja') TAB_ACTUAL = 'pagos';
+  irATab(TAB_ACTUAL);
+}
+
+/* ============================================================
+   NAVEGACIÓN ENTRE TABS
+   ============================================================ */
+document.querySelectorAll('nav.tabbar button[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => irATab(btn.dataset.tab));
+});
+
+function irATab(nombre) {
+  TAB_ACTUAL = nombre;
+  document.querySelectorAll('.tab').forEach(s => s.classList.add('oculto'));
+  document.getElementById('tab-' + nombre)?.classList.remove('oculto');
+  document.querySelectorAll('nav.tabbar button[data-tab]').forEach(b => {
+    b.classList.toggle('activo', b.dataset.tab === nombre);
+  });
+  // Cada módulo se engancha acá cuando esté construido:
+  if (nombre === 'caja' && typeof cargarCaja === 'function') cargarCaja();
+  if (nombre === 'pagos' && typeof cargarPagos === 'function') cargarPagos();
+  if (nombre === 'proveedores' && typeof cargarProveedores === 'function') cargarProveedores();
+  if (nombre === 'proyeccion' && typeof cargarProyeccion === 'function') cargarProyeccion();
+  if (nombre === 'alertas' && typeof cargarAlertas === 'function') cargarAlertas();
+  if (nombre === 'config' && typeof cargarConfig === 'function') cargarConfig();
+}
+
+/* ============================================================
+   MODAL: Funcionamiento de la app
+   ============================================================ */
+document.getElementById('btnFuncionamiento').addEventListener('click', () => {
+  document.getElementById('modalFuncionamiento').classList.add('show');
+});
+document.querySelectorAll('[data-cerrar-modal]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById(btn.dataset.cerrarModal).classList.remove('show');
+  });
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('show'); });
+});
+
+/* ============================================================
+   MÓDULOS DE CADA TAB
+   Placeholder por ahora — se completan en el próximo paso con
+   las Edge Functions (pagos-list, pagos-crud, proveedores-crud,
+   caja-proyeccion, usuarios-permisos).
+   ============================================================ */
+
+const AYUDA_KPI_CAJA = {
+  saldo: 'Saldo disponible hoy en tu cuenta de Mercado Pago, según el último dato sincronizado desde la API de MP.',
+  aLiberar: 'Plata que Mercado Pago te va a liberar (todavía retenida) según el calendario de liberaciones.',
+  pendiente7: 'Suma de los pagos a proveedores con vencimiento entre hoy y los próximos 7 días.',
+  bucket: 'Saldo proyectado = saldo disponible hoy + liberaciones de MP que van a caer en ese plazo − pagos pendientes que vencen en ese plazo.',
+};
+
+async function cargarCaja() {
+  const estadoEl = document.getElementById('cajaEstado');
+  const semaforoEl = document.getElementById('cajaSemaforo');
+  const kpisEl = document.getElementById('cajaKpis');
+  const bucketsEl = document.getElementById('cajaBuckets');
+
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando caja…</div>`;
+  semaforoEl.innerHTML = ''; kpisEl.innerHTML = ''; bucketsEl.innerHTML = '';
+
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/caja-proyeccion', { headers: { Authorization: AUTH } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    estadoEl.classList.add('oculto');
+
+    const h = data.hoy;
+    semaforoEl.innerHTML = h.alcanza_7d
+      ? `<div class="badge ok" style="font-size:12px; padding:6px 12px;">✓ Te alcanza para los próximos 7 días</div>`
+      : `<div class="badge bad" style="font-size:12px; padding:6px 12px;">⚠ Ojo: no te alcanzaría para los pagos de los próximos 7 días</div>`;
+
+    kpisEl.innerHTML =
+      kpiHTML({ id:'caja-saldo', label:'Saldo MP disponible', valor: fmtARS(h.saldo_disponible), ayuda: AYUDA_KPI_CAJA.saldo }) +
+      kpiHTML({ id:'caja-liberar', label:'A liberar (MP)', valor: fmtARS(h.total_a_liberar), ayuda: AYUDA_KPI_CAJA.aLiberar }) +
+      kpiHTML({ id:'caja-pend7', label:'Pagos próx. 7 días', valor: fmtARS(h.pendiente_7d), ayuda: AYUDA_KPI_CAJA.pendiente7 });
+
+    bucketsEl.innerHTML = data.proyeccion.map(b => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--panel-2); border-radius:var(--radius-sm);">
+        <div style="font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px;">
+          A ${b.dias} días
+          <button class="kpi-help" data-kpi-help="bucket-${b.dias}">?</button>
+          <div class="kpi-pop" id="pop-bucket-${b.dias}">${AYUDA_KPI_CAJA.bucket}</div>
+        </div>
+        <div class="mono" style="font-size:14px; color:${b.saldo_proyectado >= 0 ? 'var(--ok)' : 'var(--bad)'};">${fmtARS(b.saldo_proyectado)}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    renderError('cajaEstado', 'No se pudo cargar el estado de caja (' + e.message + ').', cargarCaja);
+  }
+}
+let PAGOS_CACHE = [];
+
+// Textos de ayuda de los KPI de Pagos (premisa 7 — nunca un número sin su "?")
+const AYUDA_KPI_PAGOS = {
+  total_pendiente: 'Suma de importes de todos los pagos con estado distinto de "pagado", sin importar si ya vencieron o no. Fuente: tabla pagos en Supabase.',
+  vencidos: 'Cantidad de pagos pendientes cuya fecha de vencimiento ya pasó (comparado contra la fecha de hoy).',
+};
+
+async function cargarPagos(filtros = {}) {
+  const estadoEl = document.getElementById('pagosEstado');
+  const listaEl = document.getElementById('pagosLista');
+  const resumenEl = document.getElementById('pagosResumen');
+  const countEl = document.getElementById('pagosCount');
+
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando pagos…</div>`;
+  listaEl.innerHTML = '';
+  resumenEl.innerHTML = '';
+  countEl.textContent = '';
+
+  const params = new URLSearchParams();
+  if (filtros.estado) params.set('estado', filtros.estado);
+  if (filtros.categoria) params.set('categoria', filtros.categoria);
+  if (filtros.q) params.set('q', filtros.q);
+
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-list?' + params.toString(), {
+      headers: { Authorization: AUTH }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    estadoEl.classList.add('oculto');
+
+    // Resumen KPI
+    resumenEl.innerHTML =
+      kpiHTML({
+        id: 'pag-total-pend',
+        label: 'Total pendiente',
+        valor: fmtARS(data.resumen.total_pendiente),
+        ayuda: AYUDA_KPI_PAGOS.total_pendiente
+      }) +
+      kpiHTML({
+        id: 'pag-vencidos',
+        label: 'Vencidos',
+        valor: data.resumen.vencidos,
+        ayuda: AYUDA_KPI_PAGOS.vencidos
+      });
+
+    countEl.textContent = '(' + data.count + ')';
+
+    if (data.pagos.length === 0) {
+      PAGOS_CACHE = [];
+      listaEl.innerHTML = `<div class="estado"><div style="font-size:22px;">🗂️</div><div>No hay pagos que coincidan con el filtro.</div></div>`;
+      return;
+    }
+
+    PAGOS_CACHE = data.pagos;
+    listaEl.innerHTML = data.pagos.map(renderFilaPago).join('');
+  } catch (e) {
+    renderError('pagosEstado', 'No se pudieron cargar los pagos (' + e.message + ').', () => cargarPagos(filtros));
+  }
+}
+
+function renderFilaPago(p) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const realizado = (p.estado || '').toUpperCase() === 'REALIZADO';
+  const vencido = !realizado && p.vencimiento && p.vencimiento < hoy;
+  let badge = '<span class="badge ok">Pagado</span>';
+  if (!realizado) badge = vencido ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Pendiente</span>';
+  const puedeMarcar = !realizado && USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
+  return `
+    <div class="pago-fila" data-id="${p.id}" style="padding:12px 0; border-top:1px solid var(--line);">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; cursor:pointer;" data-editar="${p.id}">
+        <div style="min-width:0;">
+          <div style="font-size:13.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.descripcion || p.proveedor_nro || 'Sin descripción')}</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(p.proveedor_nro || '—')} · ${escapeHtml(p.categoria || 'Sin categoría')} · vence ${fmtFecha(p.vencimiento)}</div>
+        </div>
+        <div style="text-align:right; flex:none;">
+          <div class="mono" style="font-size:14px; color:var(--amber);">${fmtARS(p.importe)}</div>
+          <div style="margin-top:4px;">${badge}</div>
+        </div>
+      </div>
+      ${puedeMarcar ? `<button class="btn secundario" data-marcar-pagado="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+document.getElementById('btnAplicarFiltros').addEventListener('click', () => {
+  cargarPagos({
+    estado: document.getElementById('fEstado').value,
+    categoria: document.getElementById('fCategoria').value,
+    q: document.getElementById('fBusqueda').value.trim(),
+  });
+});
+
+/* ---------- Alta / edición de pago ---------- */
+
+// Delegación de eventos: la lista se re-renderiza seguido, así que enganchamos
+// los clicks una sola vez sobre el contenedor en vez de cada vez que se pinta.
+document.getElementById('pagosLista').addEventListener('click', (e) => {
+  const btnMarcar = e.target.closest('[data-marcar-pagado]');
+  if (btnMarcar) { marcarPagado(btnMarcar.dataset.marcarPagado); return; }
+  const fila = e.target.closest('[data-editar]');
+  if (fila) abrirModalPago(fila.dataset.editar);
+});
+
+async function poblarSelectProveedores(seleccionado) {
+  const sel = document.getElementById('pgProveedor');
+  sel.innerHTML = '<option value="">Sin proveedor / texto libre</option>';
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/proveedores-crud', { headers: { Authorization: AUTH } });
+    const data = await resp.json();
+    if (data.ok) {
+      data.proveedores.forEach(p => {
+        const op = document.createElement('option');
+        op.value = p.id; op.textContent = p.nombre;
+        if (p.id === seleccionado) op.selected = true;
+        sel.appendChild(op);
+      });
+    }
+  } catch (e) { /* si falla, el select queda con solo la opción libre — no bloquea el alta */ }
+}
+
+async function abrirModalPago(id) {
+  const p = id ? PAGOS_CACHE.find(x => String(x.id) === String(id)) : null;
+  document.getElementById('modalPagoTitulo').textContent = p ? 'Editar pago' : 'Nuevo pago';
+  document.getElementById('pgId').value = p ? p.id : '';
+  document.getElementById('pgDescripcion').value = p ? (p.descripcion || '') : '';
+  document.getElementById('pgProveedorTexto').value = p ? (p.proveedor_nro || '') : '';
+  document.getElementById('pgImporte').value = p ? p.importe : '';
+  document.getElementById('pgVencimiento').value = p ? (p.vencimiento || '') : '';
+  document.getElementById('pgCategoria').value = p ? (p.categoria || '') : '';
+  document.getElementById('pgError').textContent = '';
+  await poblarSelectProveedores(p ? p.proveedor_id : null);
+  document.getElementById('modalPago').classList.add('show');
+}
+
+document.getElementById('btnNuevoPago').addEventListener('click', () => abrirModalPago(null));
+
+document.getElementById('btnGuardarPago').addEventListener('click', () => guardarPago());
+
+async function guardarPago(datosVoz) {
+  const errEl = document.getElementById('pgError');
+  const btn = document.getElementById('btnGuardarPago');
+  errEl.textContent = '';
+
+  const id = document.getElementById('pgId').value;
+  const importe = Number(document.getElementById('pgImporte').value);
+  const descripcion = document.getElementById('pgDescripcion').value.trim();
+  const proveedorTexto = document.getElementById('pgProveedorTexto').value.trim();
+
+  if (!importe || importe <= 0) { errEl.textContent = 'El importe tiene que ser mayor a 0.'; return; }
+  if (!descripcion && !proveedorTexto) { errEl.textContent = 'Completá descripción o proveedor.'; return; }
+
+  const payload = {
+    descripcion: descripcion || null,
+    proveedor_nro: proveedorTexto || null,
+    proveedor_id: document.getElementById('pgProveedor').value || null,
+    importe,
+    vencimiento: document.getElementById('pgVencimiento').value || null,
+    categoria: document.getElementById('pgCategoria').value || null,
+  };
+  if (id) payload.id = id;
+
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-crud', {
+      method: id ? 'PUT' : 'POST',
+      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    document.getElementById('modalPago').classList.remove('show');
+    cargarPagos();
+  } catch (e) {
+    errEl.textContent = 'No se pudo guardar: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+}
+
+async function marcarPagado(id) {
+  const confirmado = await confirmarAccion('Se va a registrar como pagado hoy (' + fmtFecha(new Date().toISOString()) + ').', 'Marcar como pagado');
+  if (!confirmado) return;
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-crud', {
+      method: 'PUT',
+      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, estado: 'REALIZADO' }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    cargarPagos();
+  } catch (e) {
+    alertInline('No se pudo marcar como pagado: ' + e.message);
+  }
+}
+
+/* ---------- Carga por voz guiada (sin LLM — Web Speech API nativa) ---------- */
+
+const CAMPOS_VOZ = [
+  { campo: 'importe', titulo: '💰 Monto', tipo: 'numero' },
+  { campo: 'proveedorTexto', titulo: '🏢 Proveedor', tipo: 'texto' },
+  { campo: 'descripcion', titulo: '📝 Descripción', tipo: 'texto' },
+];
+let vozPaso = 0;
+let vozValores = {};
+let vozReconocedor = null;
+
+function hayReconocimientoDeVoz() {
+  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+}
+
+document.getElementById('btnPagoPorVoz').addEventListener('click', () => {
+  if (!hayReconocimientoDeVoz()) {
+    alertInline('Tu navegador no soporta carga por voz. Probá con Chrome en Android.');
+    return;
+  }
+  vozPaso = 0; vozValores = {};
+  document.getElementById('modalVoz').classList.add('show');
+  mostrarPasoVoz();
+});
+
+function mostrarPasoVoz() {
+  const paso = CAMPOS_VOZ[vozPaso];
+  document.getElementById('vozCampoTitulo').textContent = paso.titulo;
+  document.getElementById('vozEstado').textContent = '';
+  document.getElementById('vozResultado').textContent = '';
+  document.getElementById('btnVozSiguiente').disabled = true;
+  document.getElementById('btnVozSiguiente').textContent = vozPaso === CAMPOS_VOZ.length - 1 ? 'Guardar' : 'Siguiente';
+}
+
+function escucharVoz() {
+  const paso = CAMPOS_VOZ[vozPaso];
+  const Reconocedor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  vozReconocedor = new Reconocedor();
+  vozReconocedor.lang = 'es-AR';
+  vozReconocedor.interimResults = false;
+  vozReconocedor.maxAlternatives = 1;
+
+  document.getElementById('vozEstado').textContent = 'Escuchando…';
+
+  vozReconocedor.onresult = (e) => {
+    const texto = e.results[0][0].transcript.trim();
+    let valor = texto;
+    if (paso.tipo === 'numero') {
+      valor = interpretarNumeroHablado(texto);
+    }
+    vozValores[paso.campo] = valor;
+    document.getElementById('vozEstado').textContent = 'Escuchado:';
+    document.getElementById('vozResultado').textContent = paso.tipo === 'numero' ? fmtARS(valor) : valor;
+    document.getElementById('btnVozSiguiente').disabled = false;
+  };
+  vozReconocedor.onerror = () => {
+    document.getElementById('vozEstado').textContent = 'No te escuché bien, tocá el micrófono de nuevo.';
+  };
+  vozReconocedor.start();
+}
+
+// Interpreta números hablados en español simples ("cuarenta y cinco mil" -> 45000).
+// Cubre el caso de uso real (montos en pesos redondeados); si no reconoce el patrón,
+// intenta extraer dígitos sueltos como fallback.
+function interpretarNumeroHablado(texto) {
+  const limpio = texto.toLowerCase().replace(/\./g, '').replace(/pesos|con centavos|centavos/g, '').trim();
+  const soloDigitos = limpio.match(/[\d]+([.,]\d+)?/);
+  if (soloDigitos) return Number(soloDigitos[0].replace(',', '.'));
+
+  const UNIDADES = { cero:0, un:1, uno:1, una:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9,
+    diez:10, once:11, doce:12, trece:13, catorce:14, quince:15, dieciseis:16, diecisiete:17, dieciocho:18, diecinueve:19,
+    veinte:20, veintiuno:21, veintidos:22, veintitres:23, veinticuatro:24, veinticinco:25, veintiseis:26, veintisiete:27, veintiocho:28, veintinueve:29,
+    treinta:30, cuarenta:40, cincuenta:50, sesenta:60, setenta:70, ochenta:80, noventa:90 };
+  const MULT = { cien:100, cientos:100, mil:1000, millon:1000000, millones:1000000 };
+
+  const palabras = limpio.replace(/-/g, ' ').split(/\s+y\s+|\s+/).filter(Boolean);
+  let total = 0, actual = 0;
+  for (const palabra of palabras) {
+    if (palabra in UNIDADES) actual += UNIDADES[palabra];
+    else if (palabra === 'cien' || palabra === 'cientos') {
+      actual = (actual === 0 ? 1 : actual) * 100;
+    } else if (palabra === 'mil' || palabra === 'millon' || palabra === 'millones') {
+      actual = actual === 0 ? 1 : actual;
+      total += actual * MULT[palabra];
+      actual = 0;
+    }
+  }
+  return total + actual;
+}
+
+document.getElementById('btnVozMic').addEventListener('click', escucharVoz);
+document.getElementById('btnVozRepetir').addEventListener('click', escucharVoz);
+
+document.getElementById('btnVozSiguiente').addEventListener('click', () => {
+  if (vozPaso < CAMPOS_VOZ.length - 1) {
+    vozPaso++;
+    mostrarPasoVoz();
+  } else {
+    // último paso: cerrar el modal de voz y precargar el modal de alta para que confirme antes de guardar
+    document.getElementById('modalVoz').classList.remove('show');
+    abrirModalPago(null).then(() => {
+      if (vozValores.importe) document.getElementById('pgImporte').value = vozValores.importe;
+      if (vozValores.proveedorTexto) document.getElementById('pgProveedorTexto').value = vozValores.proveedorTexto;
+      if (vozValores.descripcion) document.getElementById('pgDescripcion').value = vozValores.descripcion;
+    });
+  }
+});
+let PROV_CACHE = []; // para poder abrir el modal de edición sin re-pedir el dato
+
+async function cargarProveedores() {
+  const estadoEl = document.getElementById('provEstado');
+  const listaEl = document.getElementById('provLista');
+  const countEl = document.getElementById('provCount');
+
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando proveedores…</div>`;
+  listaEl.innerHTML = ''; countEl.textContent = '';
+
+  const q = document.getElementById('provBusqueda').value.trim();
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/proveedores-crud?' + params.toString(), { headers: { Authorization: AUTH } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    estadoEl.classList.add('oculto');
+    PROV_CACHE = data.proveedores;
+    countEl.textContent = '(' + data.count + ')';
+
+    if (data.proveedores.length === 0) {
+      listaEl.innerHTML = `<div class="estado"><div style="font-size:22px;">🗂️</div><div>Todavía no cargaste proveedores.</div></div>`;
+      return;
+    }
+
+    listaEl.innerHTML = data.proveedores.map(p => `
+      <div class="prov-fila" data-id="${p.id}" style="padding:12px 0; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px; cursor:pointer;">
+        <div style="min-width:0;">
+          <div style="font-size:13.5px; color:var(--text);">${escapeHtml(p.nombre)}</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(p.categoria || 'Sin categoría')}${p.condicion_pago ? ' · ' + escapeHtml(p.condicion_pago) : ''}</div>
+        </div>
+        <div style="color:var(--text-dim); font-size:16px;">›</div>
+      </div>
+    `).join('');
+
+    const puedeEditar = USUARIO.es_admin || USUARIO.permisos.gestionar_proveedores;
+    listaEl.querySelectorAll('.prov-fila').forEach(fila => {
+      if (!puedeEditar) { fila.style.cursor = 'default'; fila.querySelector('div:last-child').style.display = 'none'; return; }
+      fila.addEventListener('click', () => abrirModalProveedor(fila.dataset.id));
+    });
+  } catch (e) {
+    renderError('provEstado', 'No se pudieron cargar los proveedores (' + e.message + ').', cargarProveedores);
+  }
+}
+
+document.getElementById('provBusqueda').addEventListener('input', debounce(cargarProveedores, 400));
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+document.getElementById('btnNuevoProveedor').addEventListener('click', () => abrirModalProveedor(null));
+
+function abrirModalProveedor(id) {
+  const p = id ? PROV_CACHE.find(x => x.id === id) : null;
+  document.getElementById('modalProveedorTitulo').textContent = p ? 'Editar proveedor' : 'Nuevo proveedor';
+  document.getElementById('pvId').value = p ? p.id : '';
+  document.getElementById('pvNombre').value = p ? p.nombre : '';
+  document.getElementById('pvCuit').value = p ? (p.cuit || '') : '';
+  document.getElementById('pvCondicion').value = p ? (p.condicion_pago || '') : '';
+  document.getElementById('pvContacto').value = p ? (p.contacto || '') : '';
+  document.getElementById('pvCategoria').value = p ? (p.categoria || '') : '';
+  document.getElementById('pvNotas').value = p ? (p.notas || '') : '';
+  document.getElementById('pvError').textContent = '';
+  document.getElementById('btnDarBajaProveedor').classList.toggle('oculto', !p);
+  document.getElementById('modalProveedor').classList.add('show');
+}
+
+document.getElementById('btnGuardarProveedor').addEventListener('click', async () => {
+  const errEl = document.getElementById('pvError');
+  const btn = document.getElementById('btnGuardarProveedor');
+  const id = document.getElementById('pvId').value;
+  const nombre = document.getElementById('pvNombre').value.trim();
+  errEl.textContent = '';
+
+  if (!nombre) { errEl.textContent = 'El nombre es obligatorio.'; return; }
+
+  const payload = {
+    nombre,
+    cuit: document.getElementById('pvCuit').value.trim() || null,
+    condicion_pago: document.getElementById('pvCondicion').value.trim() || null,
+    contacto: document.getElementById('pvContacto').value.trim() || null,
+    categoria: document.getElementById('pvCategoria').value || null,
+    notas: document.getElementById('pvNotas').value.trim() || null,
+  };
+  if (id) payload.id = id;
+
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/proveedores-crud', {
+      method: id ? 'PUT' : 'POST',
+      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    document.getElementById('modalProveedor').classList.remove('show');
+    cargarProveedores();
+  } catch (e) {
+    errEl.textContent = 'No se pudo guardar: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+});
+
+document.getElementById('btnDarBajaProveedor').addEventListener('click', async () => {
+  const id = document.getElementById('pvId').value;
+  if (!id) return;
+  const confirmado = await confirmarAccion('No se borra, pero deja de aparecer en el listado y en los filtros de Pagos.', 'Dar de baja proveedor');
+  if (!confirmado) return;
+  const btn = document.getElementById('btnDarBajaProveedor');
+  btn.disabled = true;
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/proveedores-crud?id=' + encodeURIComponent(id), {
+      method: 'DELETE', headers: { Authorization: AUTH },
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    document.getElementById('modalProveedor').classList.remove('show');
+    cargarProveedores();
+  } catch (e) {
+    document.getElementById('pvError').textContent = 'No se pudo dar de baja: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+const AYUDA_KPI_PROY = {
+  ingresos: 'Liberaciones de Mercado Pago que van a caer dentro de ese plazo, sumadas a partir de hoy.',
+  egresos: 'Pagos pendientes (no realizados) cuyo vencimiento cae dentro de ese plazo, sumados a partir de hoy.',
+  saldo: 'Saldo MP disponible hoy + ingresos del plazo − egresos del plazo. Si da negativo, ese plazo no te alcanzaría con lo que tenés hoy.',
+};
+
+async function cargarProyeccion() {
+  const estadoEl = document.getElementById('proyEstado');
+  const graficoEl = document.getElementById('proyGrafico');
+  const tablaEl = document.getElementById('proyTabla');
+
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Calculando proyección…</div>`;
+  graficoEl.innerHTML = ''; tablaEl.innerHTML = '';
+
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/caja-proyeccion', { headers: { Authorization: AUTH } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    estadoEl.classList.add('oculto');
+
+    const buckets = data.proyeccion;
+    const maxAbs = Math.max(1, ...buckets.map(b => Math.abs(b.saldo_proyectado)));
+
+    // Mini-gráfico de barras con CSS puro (sin librería nueva)
+    graficoEl.innerHTML = buckets.map(b => {
+      const alturaPct = Math.max(6, Math.round((Math.abs(b.saldo_proyectado) / maxAbs) * 100));
+      const color = b.saldo_proyectado >= 0 ? 'var(--ok)' : 'var(--bad)';
+      return `
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;">
+          <div style="width:100%; max-width:34px; height:${alturaPct}%; background:${color}; border-radius:4px 4px 0 0; transition:height .3s;"></div>
+          <div style="font-size:10px; color:var(--text-dim); margin-top:6px;">${b.dias}d</div>
+        </div>
+      `;
+    }).join('');
+
+    tablaEl.innerHTML = buckets.map(b => `
+      <div style="padding:12px 0; border-top:1px solid var(--line);">
+        <div style="font-size:12.5px; color:var(--text); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span>A ${b.dias} días <span style="color:var(--text-dim); font-weight:400;">(hasta ${fmtFecha(b.limite)})</span></span>
+          <span class="mono" style="color:${b.saldo_proyectado >= 0 ? 'var(--ok)' : 'var(--bad)'}; font-size:14px;">${fmtARS(b.saldo_proyectado)}</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          ${kpiHTML({ id:`proy-ing-${b.dias}`, label:'Ingresos MP', valor: fmtARS(b.ingresos), ayuda: AYUDA_KPI_PROY.ingresos })}
+          ${kpiHTML({ id:`proy-egr-${b.dias}`, label:'Egresos pagos', valor: fmtARS(b.egresos), ayuda: AYUDA_KPI_PROY.egresos })}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    renderError('proyEstado', 'No se pudo calcular la proyección (' + e.message + ').', cargarProyeccion);
+  }
+}
+async function cargarAlertas() {
+  const estadoEl = document.getElementById('alertasVencidosEstado');
+  const vencidosEl = document.getElementById('alertasVencidos');
+  const el7 = document.getElementById('alertas7');
+  const el15 = document.getElementById('alertas15');
+
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Revisando…</div>`;
+  vencidosEl.innerHTML = ''; el7.innerHTML = ''; el15.innerHTML = '';
+
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-list?estado=PENDIENTE&limit=500', { headers: { Authorization: AUTH } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    estadoEl.classList.add('oculto');
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const en15 = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+
+    const conVenc = (data.pagos || []).filter(p => p.vencimiento);
+    const vencidos = conVenc.filter(p => p.vencimiento < hoy).sort((a, b) => a.vencimiento.localeCompare(b.vencimiento));
+    const proximos7 = conVenc.filter(p => p.vencimiento >= hoy && p.vencimiento <= en7).sort((a, b) => a.vencimiento.localeCompare(b.vencimiento));
+    const proximos15 = conVenc.filter(p => p.vencimiento > en7 && p.vencimiento <= en15).sort((a, b) => a.vencimiento.localeCompare(b.vencimiento));
+
+    vencidosEl.innerHTML = vencidos.length
+      ? vencidos.map(renderFilaPago).join('')
+      : `<div class="estado"><div style="font-size:20px;">✓</div><div>No tenés pagos vencidos.</div></div>`;
+
+    el7.innerHTML = proximos7.length
+      ? proximos7.map(renderFilaPago).join('')
+      : `<div class="estado"><div style="font-size:20px;">🗂️</div><div>Nada por vencer en 7 días.</div></div>`;
+
+    el15.innerHTML = proximos15.length
+      ? proximos15.map(renderFilaPago).join('')
+      : `<div class="estado"><div style="font-size:20px;">🗂️</div><div>Nada por vencer en 15 días.</div></div>`;
+  } catch (e) {
+    renderError('alertasVencidosEstado', 'No se pudieron cargar las alertas (' + e.message + ').', cargarAlertas);
+  }
+}
+const LABELS_PERMISOS = {
+  ver_caja: 'Ver Caja hoy',
+  gestionar_proveedores: 'Gestionar proveedores (alta/edición)',
+  marcar_pagado: 'Marcar pagos como pagados',
+};
+
+async function cargarConfig() {
+  const estadoEl = document.getElementById('configEstado');
+  const listaEl = document.getElementById('configLista');
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando usuarios…</div>`;
+  listaEl.innerHTML = '';
+
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/usuarios-permisos', { headers: { Authorization: AUTH } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'error desconocido');
+
+    estadoEl.classList.add('oculto');
+
+    if (!data.usuarios || data.usuarios.length === 0) {
+      listaEl.innerHTML = `<div class="estado"><div>No hay usuarios para mostrar.</div></div>`;
+      return;
+    }
+
+    listaEl.innerHTML = data.usuarios.map(u => `
+      <div class="card" style="background:var(--panel-2); margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:${u.es_admin ? '0' : '10px'};">
+          <div style="font-size:13.5px; color:var(--text);">${escapeHtml(u.email)}</div>
+          ${u.es_admin ? '<span class="badge ok">Admin</span>' : ''}
+        </div>
+        ${u.es_admin ? '<div style="font-size:11px; color:var(--text-dim); margin-top:6px;">Los admin tienen acceso completo, no se restringen desde acá.</div>' : Object.keys(LABELS_PERMISOS).map(clave => `
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-dim); padding:6px 0; cursor:pointer;">
+            <input type="checkbox" data-user="${u.user_id}" data-permiso="${clave}" ${u.permisos?.[clave] ? 'checked' : ''} style="width:16px; height:16px; accent-color:var(--amber);">
+            ${LABELS_PERMISOS[clave]}
+          </label>
+        `).join('')}
+      </div>
+    `).join('');
+
+    listaEl.querySelectorAll('input[type=checkbox][data-permiso]').forEach(chk => {
+      chk.addEventListener('change', () => guardarPermiso(chk.dataset.user, chk.dataset.permiso, chk.checked, chk));
+    });
+  } catch (e) {
+    renderError('configEstado', 'No se pudo cargar la configuración (' + e.message + ').', cargarConfig);
+  }
+}
+
+async function guardarPermiso(userId, permiso, valor, checkboxEl) {
+  checkboxEl.disabled = true;
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/usuarios-permisos', {
+      method: 'PUT',
+      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, permisos: { [permiso]: valor } }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+  } catch (e) {
+    checkboxEl.checked = !valor; // revertir visualmente si falló
+    alertInline('No se pudo guardar el permiso: ' + e.message);
+  } finally {
+    checkboxEl.disabled = false;
+  }
+}
+
+// Mini-aviso no bloqueante (evita alert() nativo) — aparece arriba y se auto-oculta
+function alertInline(mensaje) {
+  let el = document.getElementById('toastInline');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toastInline';
+    el.style.cssText = 'position:fixed; top:70px; left:50%; transform:translateX(-50%); background:var(--bad); color:#fff; padding:10px 16px; border-radius:var(--radius-sm); font-size:12.5px; z-index:150; max-width:88%; text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.textContent = mensaje;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+</script>
+</body>
+</html>
