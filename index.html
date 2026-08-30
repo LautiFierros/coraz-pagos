@@ -454,12 +454,24 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
     <h2 id="modalProveedorTitulo">Nuevo proveedor</h2>
     <input type="hidden" id="pvId">
     <div class="field">
+      <label>ID de proveedor (código del Excel)</label>
+      <input type="text" id="pvCodigoLegacy" placeholder="Ej: 16F, 33">
+    </div>
+    <div class="field">
       <label>Nombre *</label>
       <input type="text" id="pvNombre" placeholder="Ej: Rulman Sur">
     </div>
     <div class="field">
       <label>CUIT</label>
       <input type="text" id="pvCuit" placeholder="30-12345678-9">
+    </div>
+    <div class="field">
+      <label>Frecuencia de pago</label>
+      <select id="pvFrecuencia">
+        <option value="">Sin definir</option>
+        <option value="quincenal">Quincenal</option>
+        <option value="mensual">Mensual</option>
+      </select>
     </div>
     <div class="field">
       <label>Condición de pago</label>
@@ -1392,8 +1404,8 @@ async function cargarProveedores() {
     listaEl.innerHTML = data.proveedores.map(p => `
       <div class="prov-fila" data-id="${p.id}" style="padding:12px 0; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px; cursor:pointer;">
         <div style="min-width:0;">
-          <div style="font-size:13.5px; color:var(--text);">${escapeHtml(p.nombre)}</div>
-          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(p.categoria || 'Sin categoría')}${p.condicion_pago ? ' · ' + escapeHtml(p.condicion_pago) : ''}</div>
+          <div style="font-size:13.5px; color:var(--text);">${escapeHtml(p.nombre)} ${p.codigo_legacy ? `<span class="mono" style="font-size:11px; color:var(--text-dim);">· ${escapeHtml(p.codigo_legacy)}</span>` : ''}</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(p.categoria || 'Sin categoría')}${p.condicion_pago ? ' · ' + escapeHtml(p.condicion_pago) : ''}${p.frecuencia_pago ? ' · ' + (p.frecuencia_pago === 'quincenal' ? 'Quincenal' : 'Mensual') : ''}</div>
         </div>
         <div style="color:var(--text-dim); font-size:16px;">›</div>
       </div>
@@ -1418,8 +1430,10 @@ function abrirModalProveedor(id) {
   const p = id ? PROV_CACHE.find(x => x.id === id) : null;
   document.getElementById('modalProveedorTitulo').textContent = p ? 'Editar proveedor' : 'Nuevo proveedor';
   document.getElementById('pvId').value = p ? p.id : '';
+  document.getElementById('pvCodigoLegacy').value = p ? (p.codigo_legacy || '') : '';
   document.getElementById('pvNombre').value = p ? p.nombre : '';
   document.getElementById('pvCuit').value = p ? (p.cuit || '') : '';
+  document.getElementById('pvFrecuencia').value = p ? (p.frecuencia_pago || '') : '';
   document.getElementById('pvCondicion').value = p ? (p.condicion_pago || '') : '';
   document.getElementById('pvContacto').value = p ? (p.contacto || '') : '';
   document.getElementById('pvCategoria').value = p ? (p.categoria || '') : '';
@@ -1440,7 +1454,9 @@ document.getElementById('btnGuardarProveedor').addEventListener('click', async (
 
   const payload = {
     nombre,
+    codigo_legacy: document.getElementById('pvCodigoLegacy').value.trim() || null,
     cuit: document.getElementById('pvCuit').value.trim() || null,
+    frecuencia_pago: document.getElementById('pvFrecuencia').value || null,
     condicion_pago: document.getElementById('pvCondicion').value.trim() || null,
     contacto: document.getElementById('pvContacto').value.trim() || null,
     categoria: document.getElementById('pvCategoria').value || null,
