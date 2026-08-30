@@ -815,7 +815,9 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 const AYUDA_KPI_CAJA = {
   saldo: 'Saldo disponible hoy en tu cuenta de Mercado Pago, según el último dato sincronizado desde la API de MP.',
   aLiberar: 'Plata que Mercado Pago te va a liberar (todavía retenida) según el calendario de liberaciones.',
-  pendiente7: 'Suma de los pagos a proveedores con vencimiento entre hoy y los próximos 7 días.',
+  vencidos: 'Suma de los pagos a proveedores cuyo vencimiento ya pasó y todavía no marcaste como pagados. Es deuda ya exigible, no proyectada.',
+  pendiente7: 'Suma de los pagos a proveedores con vencimiento entre hoy y los próximos 7 días (sin contar los ya vencidos).',
+  totalPendiente: 'Suma de TODOS los pagos pendientes, sin importar cuándo vencen — el panorama completo de lo que debés hoy.',
   bucket: 'Saldo proyectado = saldo disponible hoy + liberaciones de MP que van a caer en ese plazo − pagos pendientes que vencen en ese plazo.',
 };
 
@@ -838,14 +840,35 @@ async function cargarCaja() {
     estadoEl.classList.add('oculto');
 
     const h = data.hoy;
-    semaforoEl.innerHTML = h.alcanza_7d
-      ? `<div class="badge ok" style="font-size:12px; padding:6px 12px;">✓ Te alcanza para los próximos 7 días</div>`
-      : `<div class="badge bad" style="font-size:12px; padding:6px 12px;">⚠ Ojo: no te alcanzaría para los pagos de los próximos 7 días</div>`;
+
+    // Aviso de vencidos: lo más importante, va primero y bien visible — antes esto era invisible acá.
+    let avisoVencidos = '';
+    if (h.vencidos.cantidad > 0) {
+      avisoVencidos = `
+        <div id="btnVerVencidos" style="background:rgba(193,75,58,.15); border:1px solid var(--bad); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:12px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="color:var(--bad); font-size:13px; font-weight:600;">⚠ Tenés ${h.vencidos.cantidad} pago${h.vencidos.cantidad > 1 ? 's' : ''} vencido${h.vencidos.cantidad > 1 ? 's' : ''}</div>
+            <div style="color:var(--text-dim); font-size:11.5px; margin-top:2px;">Tocá para ver el detalle</div>
+          </div>
+          <div class="mono" style="color:var(--bad); font-size:16px;">${fmtARS(h.vencidos.total)}</div>
+        </div>
+      `;
+    }
+
+    semaforoEl.innerHTML = avisoVencidos + (
+      h.alcanza_7d
+        ? `<div class="badge ok" style="font-size:12px; padding:6px 12px;">✓ Te alcanza para lo vencido + próximos 7 días</div>`
+        : `<div class="badge bad" style="font-size:12px; padding:6px 12px;">⚠ No te alcanzaría para lo vencido + próximos 7 días</div>`
+    );
+
+    document.getElementById('btnVerVencidos')?.addEventListener('click', () => irATab('alertas'));
 
     kpisEl.innerHTML =
       kpiHTML({ id:'caja-saldo', label:'Saldo MP disponible', valor: fmtARS(h.saldo_disponible), ayuda: AYUDA_KPI_CAJA.saldo }) +
       kpiHTML({ id:'caja-liberar', label:'A liberar (MP)', valor: fmtARS(h.total_a_liberar), ayuda: AYUDA_KPI_CAJA.aLiberar }) +
-      kpiHTML({ id:'caja-pend7', label:'Pagos próx. 7 días', valor: fmtARS(h.pendiente_7d), ayuda: AYUDA_KPI_CAJA.pendiente7 });
+      kpiHTML({ id:'caja-vencidos', label:'Vencidos', valor: `<span style="${h.vencidos.cantidad ? 'color:var(--bad);' : ''}">${fmtARS(h.vencidos.total)}</span>`, ayuda: AYUDA_KPI_CAJA.vencidos }) +
+      kpiHTML({ id:'caja-pend7', label:'Próx. 7 días', valor: fmtARS(h.pendiente_7d), ayuda: AYUDA_KPI_CAJA.pendiente7 }) +
+      kpiHTML({ id:'caja-totalpend', label:'Total pendiente', valor: fmtARS(h.total_pendiente), ayuda: AYUDA_KPI_CAJA.totalPendiente });
 
     bucketsEl.innerHTML = data.proyeccion.map(b => `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--panel-2); border-radius:var(--radius-sm);">
