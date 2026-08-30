@@ -926,7 +926,7 @@ function renderFilaPago(p) {
   const vencido = !realizado && p.vencimiento && p.vencimiento < hoy;
   let badge = '<span class="badge ok">Pagado</span>';
   if (!realizado) badge = vencido ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Pendiente</span>';
-  const puedeMarcar = !realizado && USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
+  const puedeMarcar = USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
   return `
     <div class="pago-fila" data-id="${p.id}" style="padding:12px 0; border-top:1px solid var(--line);">
       <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; cursor:pointer;" data-editar="${p.id}">
@@ -939,7 +939,8 @@ function renderFilaPago(p) {
           <div style="margin-top:4px;">${badge}</div>
         </div>
       </div>
-      ${puedeMarcar ? `<button class="btn secundario" data-marcar-pagado="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
+      ${puedeMarcar && !realizado ? `<button class="btn secundario" data-marcar-pagado="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
+      ${puedeMarcar && realizado ? `<button class="btn secundario" data-revertir-pago="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px; color:var(--text-dim);">↺ Volver a pendiente</button>` : ''}
     </div>
   `;
 }
@@ -963,6 +964,8 @@ document.getElementById('btnAplicarFiltros').addEventListener('click', () => {
 document.getElementById('pagosLista').addEventListener('click', (e) => {
   const btnMarcar = e.target.closest('[data-marcar-pagado]');
   if (btnMarcar) { marcarPagado(btnMarcar.dataset.marcarPagado); return; }
+  const btnRevertir = e.target.closest('[data-revertir-pago]');
+  if (btnRevertir) { revertirPago(btnRevertir.dataset.revertirPago); return; }
   const fila = e.target.closest('[data-editar]');
   if (fila) abrirModalPago(fila.dataset.editar);
 });
@@ -1057,6 +1060,23 @@ async function marcarPagado(id) {
     cargarPagos();
   } catch (e) {
     alertInline('No se pudo marcar como pagado: ' + e.message);
+  }
+}
+
+async function revertirPago(id) {
+  const confirmado = await confirmarAccion('Vuelve a quedar como pendiente y se borra la fecha de pago registrada.', 'Volver a pendiente');
+  if (!confirmado) return;
+  try {
+    const resp = await fetchApi(SUPABASE_BASE + '/pagos-crud', {
+      method: 'PUT',
+      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, estado: 'PENDIENTE' }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+    cargarPagos();
+  } catch (e) {
+    alertInline('No se pudo revertir: ' + e.message);
   }
 }
 
