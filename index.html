@@ -1055,9 +1055,11 @@ function renderFilaPago(p) {
   const hoy = new Date().toISOString().slice(0, 10);
   const realizado = (p.estado || '').toUpperCase() === 'REALIZADO';
   const vencido = !realizado && p.vencimiento && p.vencimiento < hoy;
+  const faltaCompletar = !realizado && (!p.importe || !p.vencimiento);
   let badge = '<span class="badge ok">Pagado</span>';
   if (!realizado) {
     if (p.pateable) badge = '<span class="badge" style="background:rgba(168,158,140,.15); color:var(--text-dim);">Pateable</span>';
+    else if (faltaCompletar) badge = '<span class="badge" style="background:rgba(212,161,42,.2); color:var(--warn);">⚠ Completar</span>';
     else badge = vencido ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Pendiente</span>';
   }
   const puedeMarcar = USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
@@ -1073,7 +1075,8 @@ function renderFilaPago(p) {
           <div style="margin-top:4px;">${badge}</div>
         </div>
       </div>
-      ${puedeMarcar && !realizado ? `<button class="btn secundario" data-marcar-pagado="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
+      ${puedeMarcar && !realizado && !faltaCompletar ? `<button class="btn secundario" data-marcar-pagado="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
+      ${puedeMarcar && !realizado && faltaCompletar ? `<div style="font-size:11px; color:var(--text-dim); margin-top:8px;">Completá el importe para poder marcarlo como pagado.</div>` : ''}
     </div>
   `;
 }
