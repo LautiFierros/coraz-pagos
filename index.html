@@ -261,7 +261,10 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h2 style="margin:0;">Estado del día</h2>
-          <span id="cajaUltimaActualizacion" class="mono" style="font-size:10.5px; color:var(--text-dim);"></span>
+          <span style="font-size:9px; color:var(--text-dim); display:flex; align-items:center; gap:5px;">
+            <span style="width:6px; height:6px; border-radius:50%; background:var(--ok); display:inline-block;"></span>
+            <span id="cajaUltimaActualizacion" class="mono" style="font-size:10.5px; color:var(--text-dim);"></span>
+          </span>
         </div>
         <div id="cajaEstado" class="estado">
           <div class="spinner"></div>
@@ -589,6 +592,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let AUTH = null;        // 'Bearer <access_token>' — se setea/refresca solo via onAuthStateChange
 let USUARIO = null;     // { email, es_admin, permisos }
 let TAB_ACTUAL = 'caja';
+let relojCajaInterval = null;
 
 /* ============================================================
    HELPERS
@@ -795,6 +799,7 @@ document.querySelectorAll('nav.tabbar button[data-tab]').forEach(btn => {
 
 function irATab(nombre) {
   TAB_ACTUAL = nombre;
+  if (nombre !== 'caja') { clearInterval(relojCajaInterval); relojCajaInterval = null; }
   document.querySelectorAll('.tab').forEach(s => s.classList.add('oculto'));
   document.getElementById('tab-' + nombre)?.classList.remove('oculto');
   document.querySelectorAll('nav.tabbar button[data-tab]').forEach(b => {
@@ -858,7 +863,10 @@ async function cargarCaja() {
     if (!data.ok) throw new Error(data.error || 'error desconocido');
 
     estadoEl.classList.add('oculto');
-    document.getElementById('cajaUltimaActualizacion').textContent = fmtFechaHora(new Date());
+    const elReloj = document.getElementById('cajaUltimaActualizacion');
+    elReloj.textContent = fmtFechaHora(new Date());
+    clearInterval(relojCajaInterval);
+    relojCajaInterval = setInterval(() => { elReloj.textContent = fmtFechaHora(new Date()); }, 1000);
 
     const h = data.hoy;
 
