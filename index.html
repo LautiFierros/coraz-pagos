@@ -375,6 +375,10 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
         <h2>Por vencer en 15 días</h2>
         <div id="alertas15"></div>
       </div>
+      <div class="card">
+        <h2>Pateables <span style="color:var(--text-dim); text-transform:none; letter-spacing:0;">(no cuentan en Caja/Proyección)</span></h2>
+        <div id="alertasPateables"></div>
+      </div>
     </section>
 
     <!-- ---------- Tab: Configuración (solo admin) ---------- -->
@@ -510,6 +514,12 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
         <option>Impuestos y cargas</option>
         <option>Servicios generales</option>
       </select>
+    </div>
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; letter-spacing:0; font-size:13px; color:var(--text);">
+        <input type="checkbox" id="pgPateable" style="width:16px; height:16px; accent-color:var(--amber);">
+        Pateable — no contar en Caja / Proyección / Alertas
+      </label>
     </div>
     <div id="pgError" style="color:var(--bad); font-size:12px; margin-bottom:10px; min-height:16px;"></div>
     <div style="display:flex; gap:10px;">
@@ -868,7 +878,8 @@ async function cargarCaja() {
       kpiHTML({ id:'caja-liberar', label:'A liberar (MP)', valor: fmtARS(h.total_a_liberar), ayuda: AYUDA_KPI_CAJA.aLiberar }) +
       kpiHTML({ id:'caja-vencidos', label:'Vencidos', valor: `<span style="${h.vencidos.cantidad ? 'color:var(--bad);' : ''}">${fmtARS(h.vencidos.total)}</span>`, ayuda: AYUDA_KPI_CAJA.vencidos }) +
       kpiHTML({ id:'caja-pend7', label:'Próx. 7 días', valor: fmtARS(h.pendiente_7d), ayuda: AYUDA_KPI_CAJA.pendiente7 }) +
-      kpiHTML({ id:'caja-totalpend', label:'Total pendiente', valor: fmtARS(h.total_pendiente), ayuda: AYUDA_KPI_CAJA.totalPendiente });
+      kpiHTML({ id:'caja-totalpend', label:'Total pendiente', valor: fmtARS(h.total_pendiente), ayuda: AYUDA_KPI_CAJA.totalPendiente }) +
+      (h.pateables.cantidad > 0 ? kpiHTML({ id:'caja-pateables', label:'Pateables (aparte)', valor: h.pateables.cantidad + ' · ' + fmtARS(h.pateables.total), ayuda: 'Pagos que decidiste postergar a propósito. No están sumados en ninguno de los números de arriba ni en la proyección.' }) : '');
 
     bucketsEl.innerHTML = data.proyeccion.map(b => `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--panel-2); border-radius:var(--radius-sm);">
@@ -932,7 +943,13 @@ async function cargarPagos(filtros = {}) {
         label: 'Vencidos',
         valor: data.resumen.vencidos,
         ayuda: AYUDA_KPI_PAGOS.vencidos
-      });
+      }) +
+      (data.resumen.pateables_cantidad > 0 ? kpiHTML({
+        id: 'pag-pateables',
+        label: 'Pateables',
+        valor: data.resumen.pateables_cantidad + ' · ' + fmtARS(data.resumen.pateables_total),
+        ayuda: 'Pagos pendientes marcados como "pateable": los postergaste a propósito, así que no cuentan en el total pendiente ni en vencidos de arriba.'
+      }) : '');
 
     countEl.textContent = '(' + data.count + ')';
 
@@ -954,7 +971,10 @@ function renderFilaPago(p) {
   const realizado = (p.estado || '').toUpperCase() === 'REALIZADO';
   const vencido = !realizado && p.vencimiento && p.vencimiento < hoy;
   let badge = '<span class="badge ok">Pagado</span>';
-  if (!realizado) badge = vencido ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Pendiente</span>';
+  if (!realizado) {
+    if (p.pateable) badge = '<span class="badge" style="background:rgba(168,158,140,.15); color:var(--text-dim);">Pateable</span>';
+    else badge = vencido ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Pendiente</span>';
+  }
   const puedeMarcar = USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
   return `
     <div class="pago-fila" data-id="${p.id}" style="padding:12px 0; border-top:1px solid var(--line);">
@@ -1023,6 +1043,7 @@ async function abrirModalPago(id) {
   document.getElementById('pgImporte').value = p ? p.importe : '';
   document.getElementById('pgVencimiento').value = p ? (p.vencimiento || '') : '';
   document.getElementById('pgCategoria').value = p ? (p.categoria || '') : '';
+  document.getElementById('pgPateable').checked = p ? !!p.pateable : false;
   document.getElementById('pgError').textContent = '';
   const puedeRevertir = realizado && USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
   document.getElementById('btnRevertirPago').classList.toggle('oculto', !puedeRevertir);
@@ -1061,6 +1082,7 @@ async function guardarPago(datosVoz) {
     importe,
     vencimiento: document.getElementById('pgVencimiento').value || null,
     categoria: document.getElementById('pgCategoria').value || null,
+    pateable: document.getElementById('pgPateable').checked,
   };
   if (id) payload.id = id;
 
@@ -1412,10 +1434,11 @@ async function cargarAlertas() {
   const vencidosEl = document.getElementById('alertasVencidos');
   const el7 = document.getElementById('alertas7');
   const el15 = document.getElementById('alertas15');
+  const elPateables = document.getElementById('alertasPateables');
 
   estadoEl.classList.remove('oculto', 'error');
   estadoEl.innerHTML = `<div class="spinner"></div><div>Revisando…</div>`;
-  vencidosEl.innerHTML = ''; el7.innerHTML = ''; el15.innerHTML = '';
+  vencidosEl.innerHTML = ''; el7.innerHTML = ''; el15.innerHTML = ''; elPateables.innerHTML = '';
 
   try {
     const resp = await fetchApi(SUPABASE_BASE + '/pagos-list?estado=PENDIENTE&limit=500', { headers: { Authorization: AUTH } });
@@ -1429,7 +1452,11 @@ async function cargarAlertas() {
     const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     const en15 = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
 
-    const conVenc = (data.pagos || []).filter(p => p.vencimiento);
+    // Los pateables se sacan de las 3 secciones urgentes — es justamente lo que significa marcarlos así.
+    const contables = (data.pagos || []).filter(p => !p.pateable);
+    const pateables = (data.pagos || []).filter(p => p.pateable);
+
+    const conVenc = contables.filter(p => p.vencimiento);
     const vencidos = conVenc.filter(p => p.vencimiento < hoy).sort((a, b) => a.vencimiento.localeCompare(b.vencimiento));
     const proximos7 = conVenc.filter(p => p.vencimiento >= hoy && p.vencimiento <= en7).sort((a, b) => a.vencimiento.localeCompare(b.vencimiento));
     const proximos15 = conVenc.filter(p => p.vencimiento > en7 && p.vencimiento <= en15).sort((a, b) => a.vencimiento.localeCompare(b.vencimiento));
@@ -1445,6 +1472,10 @@ async function cargarAlertas() {
     el15.innerHTML = proximos15.length
       ? proximos15.map(renderFilaPago).join('')
       : `<div class="estado"><div style="font-size:20px;">🗂️</div><div>Nada por vencer en 15 días.</div></div>`;
+
+    elPateables.innerHTML = pateables.length
+      ? pateables.sort((a, b) => (a.vencimiento || '').localeCompare(b.vencimiento || '')).map(renderFilaPago).join('')
+      : `<div class="estado"><div style="font-size:20px;">🗂️</div><div>No tenés pagos pateables ahora mismo.</div></div>`;
   } catch (e) {
     renderError('alertasVencidosEstado', 'No se pudieron cargar las alertas (' + e.message + ').', cargarAlertas);
   }
