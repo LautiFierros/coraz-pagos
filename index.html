@@ -469,6 +469,7 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
       <label>Frecuencia de pago</label>
       <select id="pvFrecuencia">
         <option value="">Sin definir</option>
+        <option value="semanal">Semanal</option>
         <option value="quincenal">Quincenal</option>
         <option value="mensual">Mensual</option>
       </select>
@@ -478,8 +479,28 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
       <input type="text" id="pvCondicion" placeholder="Ej: contado, 30 días">
     </div>
     <div class="field">
-      <label>Contacto</label>
-      <input type="text" id="pvContacto" placeholder="Teléfono o email">
+      <label>Contacto (vendedor)</label>
+      <input type="text" id="pvVendedor" placeholder="Nombre de la persona de contacto">
+    </div>
+    <div class="field">
+      <label>Celular</label>
+      <input type="text" id="pvCelular" placeholder="11 1234-5678">
+    </div>
+    <div class="field">
+      <label>Teléfono fijo</label>
+      <input type="text" id="pvTelefonoFijo">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="pvEmail">
+    </div>
+    <div class="field">
+      <label>Dirección</label>
+      <input type="text" id="pvDireccion">
+    </div>
+    <div class="field">
+      <label>Alias / CBU de pago</label>
+      <input type="text" id="pvAliasPago">
     </div>
     <div class="field">
       <label>Categoría</label>
@@ -1405,7 +1426,7 @@ async function cargarProveedores() {
       <div class="prov-fila" data-id="${p.id}" style="padding:12px 0; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px; cursor:pointer;">
         <div style="min-width:0;">
           <div style="font-size:13.5px; color:var(--text);">${escapeHtml(p.nombre)} ${p.codigo_legacy ? `<span class="mono" style="font-size:11px; color:var(--text-dim);">· ${escapeHtml(p.codigo_legacy)}</span>` : ''}</div>
-          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(p.categoria || 'Sin categoría')}${p.condicion_pago ? ' · ' + escapeHtml(p.condicion_pago) : ''}${p.frecuencia_pago ? ' · ' + (p.frecuencia_pago === 'quincenal' ? 'Quincenal' : 'Mensual') : ''}</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(p.categoria || 'Sin categoría')}${p.condicion_pago ? ' · ' + escapeHtml(p.condicion_pago) : ''}${p.frecuencia_pago ? ' · ' + ({semanal:'Semanal',quincenal:'Quincenal',mensual:'Mensual'}[p.frecuencia_pago]) : ''}${p.vendedor ? ' · ' + escapeHtml(p.vendedor) : ''}</div>
         </div>
         <div style="color:var(--text-dim); font-size:16px;">›</div>
       </div>
@@ -1435,7 +1456,12 @@ function abrirModalProveedor(id) {
   document.getElementById('pvCuit').value = p ? (p.cuit || '') : '';
   document.getElementById('pvFrecuencia').value = p ? (p.frecuencia_pago || '') : '';
   document.getElementById('pvCondicion').value = p ? (p.condicion_pago || '') : '';
-  document.getElementById('pvContacto').value = p ? (p.contacto || '') : '';
+  document.getElementById('pvVendedor').value = p ? (p.vendedor || '') : '';
+  document.getElementById('pvCelular').value = p ? (p.celular || '') : '';
+  document.getElementById('pvTelefonoFijo').value = p ? (p.telefono_fijo || '') : '';
+  document.getElementById('pvEmail').value = p ? (p.email || '') : '';
+  document.getElementById('pvDireccion').value = p ? (p.direccion || '') : '';
+  document.getElementById('pvAliasPago').value = p ? (p.alias_pago || '') : '';
   document.getElementById('pvCategoria').value = p ? (p.categoria || '') : '';
   document.getElementById('pvNotas').value = p ? (p.notas || '') : '';
   document.getElementById('pvError').textContent = '';
@@ -1458,7 +1484,12 @@ document.getElementById('btnGuardarProveedor').addEventListener('click', async (
     cuit: document.getElementById('pvCuit').value.trim() || null,
     frecuencia_pago: document.getElementById('pvFrecuencia').value || null,
     condicion_pago: document.getElementById('pvCondicion').value.trim() || null,
-    contacto: document.getElementById('pvContacto').value.trim() || null,
+    vendedor: document.getElementById('pvVendedor').value.trim() || null,
+    celular: document.getElementById('pvCelular').value.trim() || null,
+    telefono_fijo: document.getElementById('pvTelefonoFijo').value.trim() || null,
+    email: document.getElementById('pvEmail').value.trim() || null,
+    direccion: document.getElementById('pvDireccion').value.trim() || null,
+    alias_pago: document.getElementById('pvAliasPago').value.trim() || null,
     categoria: document.getElementById('pvCategoria').value || null,
     notas: document.getElementById('pvNotas').value.trim() || null,
   };
