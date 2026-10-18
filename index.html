@@ -203,6 +203,175 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
 #cdnFail.show{ display:flex; }
 
 .oculto{ display:none !important; }
+
+/* ============================================================
+   LAYOUT DE PANTALLA COMPLETA (oct-2026)
+   La app ocupa el alto del celular: encabezado arriba, contenido con
+   scroll propio y barra de pestañas abajo (ya no fija sobre el contenido).
+   Así la planilla de Pagos puede tener su propio scroll como Excel.
+   ============================================================ */
+html, body { height: 100%; }
+body { padding-bottom: 0; min-height: 0; overflow: hidden; }
+#app { height: 100%; height: 100dvh; display: flex; flex-direction: column; }
+#app > header { position: relative; flex: none; }
+#app > main { flex: 1; min-height: 0; overflow-y: auto; width: 100%; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+nav.tabbar { position: static; flex: none; }
+#app > main.planilla { max-width: 1180px; overflow: hidden; display: flex; flex-direction: column; padding: 10px 12px; }
+#tab-pagos:not(.oculto) { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+
+/* ============================================================
+   PLANILLA DE PAGOS (tipo Excel)
+   Clases con prefijo pl- para no chocar con el resto de la app.
+   ============================================================ */
+:root {
+  --pl-grid: #2b251c;
+  --pl-mute: #7b7262;
+  --pl-amber-soft: #2c2116;
+  --pl-row-sel: #241d14;
+  --pl-row-hover: #211d17;
+  --f-num: ui-monospace, "SF Mono", Consolas, "Roboto Mono", monospace;
+  --pl-w-desc: 170px;
+}
+@media (max-width: 640px) { :root { --pl-w-desc: 138px; } }
+
+/* KPIs */
+.pl-kpis { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; flex: none; }
+.pl-kpis::-webkit-scrollbar { display: none; }
+.pl-kpi { flex: 1 0 136px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; min-width: 0; }
+.pl-kpi-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-dim); }
+.pl-kpi-v { font: 600 17px/1.25 var(--f-num); font-variant-numeric: tabular-nums; margin-top: 3px; white-space: nowrap; }
+.pl-kpi-s { font-size: 11px; color: var(--pl-mute); }
+.pl-kpi.bad .pl-kpi-v { color: var(--bad); }
+.pl-kpi.warn .pl-kpi-v { color: var(--warn); }
+@media (max-width: 640px) { .pl-kpi { flex-basis: 124px; padding: 7px 9px; } .pl-kpi-v { font-size: 15px; } }
+.pl-help { width: 17px; height: 17px; flex: none; border-radius: 50%; border: 1px solid var(--pl-mute); background: none; color: var(--text-dim); font-size: 10px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+.pl-help:hover { border-color: var(--amber); color: var(--amber); }
+
+/* Herramientas */
+.pl-tools { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.pl-row { display: flex; gap: 8px; align-items: center; }
+.pl-search { flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius-sm); padding: 9px 10px; font-size: 16px; font-family: inherit; }
+.pl-search:focus { outline: none; border-color: var(--amber); }
+.pl-btn { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13px; white-space: nowrap; cursor: pointer; font-family: inherit; }
+.pl-btn:hover { border-color: var(--amber); color: var(--amber); }
+.pl-btn:disabled { opacity: .35; cursor: not-allowed; border-color: var(--line); color: var(--text); }
+.pl-btn.prim { background: var(--amber); border-color: var(--amber); color: #1a1208; font-weight: 600; }
+.pl-btn.prim:hover { background: #f39a2b; color: #1a1208; }
+.pl-btn.danger { border-color: var(--bad); color: #f0b2a8; }
+.pl-btn.danger.fill { background: var(--bad); color: #fff; }
+.pl-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.pl-chips::-webkit-scrollbar { display: none; }
+.pl-chip { flex: none; background: none; border: 1px solid var(--line); color: var(--text-dim); border-radius: 99px; padding: 6px 11px; font-size: 12px; white-space: nowrap; cursor: pointer; font-family: inherit; }
+.pl-chip b { font-weight: 600; font-family: var(--f-num); margin-left: 4px; color: var(--pl-mute); }
+.pl-chip[aria-pressed="true"] { background: var(--pl-amber-soft); border-color: var(--amber); color: var(--amber); }
+.pl-chip[aria-pressed="true"] b { color: var(--amber); }
+.pl-selcat { flex: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 99px; padding: 6px 10px; font-size: 12px; color: var(--text-dim); max-width: 190px; font-family: inherit; }
+
+/* Barra de fórmula */
+.pl-fbar { flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.pl-fmain { display: flex; gap: 8px; align-items: center; min-height: 38px; }
+.pl-ref { flex: none; font: 600 12px var(--f-num); color: var(--amber); background: var(--pl-amber-soft); border: 1px solid var(--amber-dim); border-radius: 6px; padding: 5px 7px; min-width: 58px; text-align: center; }
+.pl-fx { flex: none; font: italic 600 13px var(--f-num); color: var(--pl-mute); }
+.pl-ffield { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; }
+.pl-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-dim); flex: none; }
+.pl-in { flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius-sm); padding: 8px 9px; font-size: 16px; font-family: inherit; }
+.pl-in:focus { outline: none; border-color: var(--amber); }
+.pl-in.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: right; }
+.pl-ico { flex: none; width: 38px; height: 38px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 15px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.pl-ico.ok { border-color: var(--ok); color: #9fd8ad; }
+.pl-ico:hover { border-color: var(--amber); }
+.pl-ico:disabled { opacity: .4; cursor: wait; }
+.pl-hint { color: var(--pl-mute); font-size: 12.5px; }
+.pl-seg { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+.pl-seg button { flex: 1; min-width: 84px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius-sm); padding: 8px 6px; font-size: 12.5px; cursor: pointer; font-family: inherit; }
+.pl-seg button:disabled { opacity: .35; cursor: not-allowed; }
+.pl-seg button[aria-pressed="true"].s-pend { border-color: var(--warn); color: var(--warn); background: rgba(212,161,42,.1); }
+.pl-seg button[aria-pressed="true"].s-pag { border-color: var(--ok); color: #9fd8ad; background: rgba(74,157,95,.12); }
+.pl-seg button[aria-pressed="true"].s-pat { border-color: var(--text-dim); color: var(--text); background: rgba(168,158,140,.12); }
+.pl-acc { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.pl-acc::-webkit-scrollbar { display: none; }
+.pl-acc .pl-btn { padding: 7px 11px; font-size: 12px; }
+.pl-acc .msg { font-size: 12px; color: var(--text-dim); align-self: center; flex: 1; min-width: 160px; }
+.pl-guardando { font-size: 11.5px; color: var(--amber); display: flex; align-items: center; gap: 6px; flex: none; }
+.pl-guardando .spinner { width: 14px; height: 14px; }
+
+/* Tabla */
+.pl-wrap { flex: 1; min-height: 120px; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overscroll-behavior: contain; position: relative; }
+.pl-wrap .estado { min-height: 100%; }
+.pl-tabla { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 13px; width: max-content; min-width: 100%; }
+.pl-tabla th, .pl-tabla td { border-right: 1px solid var(--pl-grid); border-bottom: 1px solid var(--pl-grid); padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.pl-tabla thead th { position: sticky; top: 0; z-index: 3; background: var(--panel-2); height: 42px; padding: 0; border-bottom: 1px solid var(--line); }
+.pl-th { width: 100%; height: 100%; background: none; border: 0; color: inherit; padding: 4px 8px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; text-align: left; cursor: pointer; font-family: inherit; }
+.pl-th .l { font: 600 9.5px var(--f-num); color: var(--pl-mute); letter-spacing: .05em; }
+.pl-th .n { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); display: flex; gap: 4px; align-items: center; }
+.pl-th .o { color: var(--amber); font-size: 9px; }
+.pl-th.num { align-items: flex-end; }
+.pl-th:hover .n { color: var(--text); }
+.pl-tabla tbody td { height: 42px; background: var(--panel); cursor: cell; }
+.pl-tabla tbody tr:hover td { background: var(--pl-row-hover); }
+.pl-tabla td.fija, .pl-tabla th.fija { position: sticky; }
+.pl-tabla td.fija { z-index: 1; }
+.pl-tabla thead th.fija { z-index: 4; }
+.pl-tabla .fija.ult { border-right: 1px solid var(--line); box-shadow: 4px 0 6px -4px rgba(0,0,0,.55); }
+.pl-tabla td.num { text-align: right; font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.pl-tabla td.mono { font-family: var(--f-num); font-variant-numeric: tabular-nums; color: var(--text-dim); font-size: 12px; }
+.pl-tabla td.idc { font-family: var(--f-num); font-size: 11.5px; color: var(--pl-mute); box-shadow: inset 3px 0 0 var(--stripe, transparent); }
+.pl-tabla tr.r-pendiente { --stripe: var(--warn); }
+.pl-tabla tr.r-vencido { --stripe: var(--bad); }
+.pl-tabla tr.r-completar { --stripe: var(--warn); }
+.pl-tabla tr.r-pateable { --stripe: var(--pl-mute); }
+.pl-tabla tr.r-pagado { --stripe: var(--ok); }
+.pl-tabla tr.r-borrador { --stripe: var(--amber); }
+.pl-tabla tr.r-pagado td:not(.estc) { color: var(--text-dim); }
+.pl-tabla tr.rowsel td, .pl-tabla tr.rowsel:hover td { background: var(--pl-row-sel); }
+.pl-tabla td.sel { outline: 2px solid var(--amber); outline-offset: -2px; }
+.pl-tabla .txt-bad { color: #e8806f !important; }
+.pl-falta { font-size: 11px; color: var(--warn); border: 1px dashed var(--warn); border-radius: 5px; padding: 2px 6px; font-family: inherit; }
+.pl-nueva-tag { font-size: 10px; color: var(--amber); letter-spacing: .06em; text-transform: uppercase; }
+.pl-pill { display: inline-block; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; font-weight: 600; }
+.p-pendiente { background: rgba(212,161,42,.14); color: var(--warn); }
+.p-vencido { background: rgba(193,75,58,.18); color: #ec8a7b; }
+.p-completar { background: rgba(212,161,42,.14); color: var(--warn); }
+.p-pateable { background: rgba(168,158,140,.15); color: var(--text-dim); }
+.p-pagado { background: rgba(74,157,95,.15); color: #8fcf9f; }
+.p-borrador { background: var(--pl-amber-soft); color: var(--amber); }
+.pl-tabla td.vacio { height: auto; padding: 34px 16px; text-align: center; color: var(--text-dim); white-space: normal; cursor: default; }
+.pl-tabla td.vacio .pl-btn { margin-top: 10px; }
+.pl-tabla tr.nueva td { animation: pl-flash 1.4s ease-out; }
+@keyframes pl-flash { from { background: #3a2a12; } }
+@media (prefers-reduced-motion: reduce) { .pl-tabla tr.nueva td { animation: none; } }
+
+/* Barra de estado */
+.pl-status { flex: none; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-dim); flex-wrap: wrap; }
+.pl-status .item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pl-status b { font-family: var(--f-num); font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+.pl-status .sp { flex: 1; }
+.pl-status .pl-btn { padding: 6px 10px; font-size: 12px; }
+
+/* Popover de ayuda, panel "Más", toast */
+#plPop { position: fixed; z-index: 60; max-width: 270px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; line-height: 1.5; color: var(--text-dim); box-shadow: 0 10px 28px rgba(0,0,0,.5); }
+#plPop b { color: var(--text); }
+#plMas { position: fixed; z-index: 55; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; width: 250px; max-height: 70vh; overflow-y: auto; box-shadow: 0 10px 28px rgba(0,0,0,.5); display: flex; flex-direction: column; gap: 6px; }
+#plMas h3 { margin: 4px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); }
+#plMas label { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+#plMas input { width: 17px; height: 17px; accent-color: var(--amber); }
+#plMas .fixed { color: var(--pl-mute); font-size: 11.5px; }
+#plMas .pl-btn { width: 100%; text-align: left; }
+#plMas hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; width: 100%; }
+#plToast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); z-index: 150; background: var(--panel-2); border: 1px solid var(--amber-dim); color: var(--text); padding: 10px 16px; border-radius: 99px; font-size: 12.5px; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: calc(100% - 32px); text-align: center; }
+#plToast.error { border-color: var(--bad); background: #3a1d18; }
+.pl-hist { list-style: none; padding: 0; margin: 0; }
+.pl-hist li { border-top: 1px solid var(--line); padding: 9px 0; font-size: 12.5px; color: var(--text-dim); }
+.pl-hist .t { font-family: var(--f-num); color: var(--pl-mute); font-size: 11px; }
+.pl-hist .c { color: var(--text); }
+#plCopia { width: 100%; height: 180px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); font: 12px var(--f-num); padding: 8px; }
+
+/* Alertas: las filas llevan a la planilla */
+.fila-alerta { padding: 12px 0; border-top: 1px solid var(--line); }
+.fila-alerta .ir { cursor: pointer; }
+
+[hidden] { display: none !important; }
+
 </style>
 </head>
 <body>
@@ -280,58 +449,40 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
       </div>
     </section>
 
-    <!-- ---------- Tab: Pagos ---------- -->
+    <!-- ---------- Tab: Pagos (planilla tipo Excel) ---------- -->
     <section id="tab-pagos" class="tab oculto">
 
-      <div class="card">
-        <div id="pagosResumen" style="display:grid; grid-template-columns:1fr 1fr; gap:14px;"></div>
+      <!-- KPIs con su "?" -->
+      <div class="pl-kpis" id="plKpis" aria-label="Resumen de pagos"></div>
+
+      <!-- Buscador, más opciones, voz y alta -->
+      <div class="pl-tools">
+        <div class="pl-row">
+          <input class="pl-search" id="plQ" type="search" placeholder="Buscar descripción, proveedor o ID" autocomplete="off">
+          <button class="pl-btn" id="plBtnMas" type="button" aria-haspopup="true" title="Columnas, pagos fijos, copiar, actualizar">Más</button>
+          <button class="pl-btn" id="btnPagoPorVoz" type="button" title="Cargar un pago por voz" aria-label="Cargar por voz">🎙️</button>
+          <button class="pl-btn prim" id="plBtnNueva" type="button">+ Fila</button>
+        </div>
+        <div class="pl-chips" id="plChips"></div>
       </div>
 
-      <div class="card">
-        <h2>Filtros</h2>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="field" style="margin-bottom:0;">
-            <label>Estado</label>
-            <select id="fEstado">
-              <option value="">Todos</option>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="REALIZADO">Pagado</option>
-            </select>
-          </div>
-          <div class="field" style="margin-bottom:0;">
-            <label>Categoría</label>
-            <select id="fCategoria">
-              <option value="">Todas</option>
-              <option>Proveedores de productos</option>
-              <option>Logística y envíos</option>
-              <option>Financiero (préstamos, deudas)</option>
-              <option>RRHH (empleados + colaboradores)</option>
-              <option>Impuestos y cargas</option>
-              <option>Servicios generales</option>
-            </select>
-          </div>
+      <!-- Barra de fórmula: muestra y edita la celda seleccionada -->
+      <div class="pl-fbar" id="plFbar" aria-label="Celda seleccionada">
+        <div class="pl-fmain">
+          <span class="pl-ref" id="plRef">—</span>
+          <span class="pl-fx">fx</span>
+          <div class="pl-ffield" id="plField"></div>
         </div>
-        <div class="field" style="margin-top:10px; margin-bottom:0;">
-          <label>Buscar (proveedor o descripción)</label>
-          <input type="text" id="fBusqueda" placeholder="Ej: Rulman Sur">
-        </div>
-        <button class="btn secundario" id="btnAplicarFiltros" style="width:100%; margin-top:12px;">Aplicar filtros</button>
+        <div class="pl-acc" id="plAcc" hidden></div>
       </div>
 
-      <div class="card">
-        <h2>Listado <span id="pagosCount" style="color:var(--text-dim); text-transform:none; letter-spacing:0;"></span></h2>
-        <div style="display:flex; gap:8px; margin-bottom:10px;">
-          <button class="btn" id="btnNuevoPago" style="flex:1; padding:10px; font-size:13px;">+ Nuevo pago</button>
-          <button class="btn secundario" id="btnPagoPorVoz" style="padding:10px 14px; font-size:13px;">🎙️</button>
-        </div>
-        <button class="btn secundario" id="btnCargarMesFijo" style="width:100%; margin-bottom:14px; padding:10px; font-size:13px;">📅 Cargar pagos fijos del mes</button>
-        <div id="pagosEstado" class="estado">
-          <div class="spinner"></div>
-          <div>Cargando pagos…</div>
-        </div>
-        <div id="pagosLista"></div>
+      <!-- La planilla -->
+      <div class="pl-wrap" id="plWrap">
+        <div class="estado"><div class="spinner"></div><div>Cargando pagos…</div></div>
       </div>
 
+      <!-- Barra de estado (como la de Excel) -->
+      <div class="pl-status" id="plStatus"></div>
     </section>
 
     <!-- ---------- Tab: Proveedores ---------- -->
@@ -434,13 +585,32 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
     <button class="cerrar" data-cerrar-modal="modalFuncionamiento">×</button>
     <h2>Funcionamiento de la app</h2>
     <div style="font-size:13px; line-height:1.6; color:var(--text-dim);">
-      <p><b style="color:var(--text)">¿Qué es esto?</b> Control de caja y pagos a proveedores de CORAZ Autopartes. Reemplaza la hoja PAGOS del Excel maestro: acá es donde se cargan y consultan los pagos de ahora en adelante.</p>
+      <p><b style="color:var(--text)">¿Qué es esto?</b> La caja y los pagos de CORAZ Autopartes. <b style="color:var(--text)">Desde el 17/10/2026 es la única fuente de verdad de los pagos</b>: la hoja PAGOS del Excel maestro quedó congelada y ya no se lee. Todo lo que cargues acá lo ven al instante la Caja, la Proyección y el panel principal.</p>
+
       <p><b style="color:var(--text)">💰 Caja hoy</b> — cruza el saldo disponible y las liberaciones pendientes de Mercado Pago contra los pagos por vencer, para saber si te alcanza.</p>
-      <p><b style="color:var(--text)">📋 Pagos</b> — listado de pagos con filtros, alta manual o por voz, marcar como pagado.</p>
+
+      <p><b style="color:var(--text)">📋 Pagos (planilla)</b> — funciona como la hoja del Excel, pero cómoda en el celular:</p>
+      <ul style="padding-left:18px; margin:0 0 10px;">
+        <li><b style="color:var(--text)">Tocá una celda</b> y su valor aparece arriba, en la barra <b style="color:var(--text)">fx</b>, para editarlo con teclado grande. Confirmás con ✓ o Enter; ✕ o Esc cancela. Si tocás otra celda, lo que escribiste se guarda solo. Cada cambio se guarda en el momento.</li>
+        <li><b style="color:var(--text)">+ Fila</b> agrega un pago arriba de todo: escribís la descripción y te va llevando por importe, vencimiento y categoría. El ID lo pone la app (sigue la numeración del Excel).</li>
+        <li><b style="color:var(--text)">Estado:</b> Pendiente, Pagado o Pateable. Al marcar Pagado se guarda la fecha de pago de hoy (la podés corregir en la columna "Pagado el"). Los <b style="color:var(--text)">pateables</b> no cuentan en totales, Caja ni alertas.</li>
+        <li><b style="color:var(--text)">Importe vacío</b> se permite (por ejemplo, la quincena de Brown antes de la liquidación): la fila queda "completar" y no se puede marcar pagada hasta cargar el monto.</li>
+        <li><b style="color:var(--text)">Duplicar</b> copia la fila (útil para cuotas). <b style="color:var(--text)">Borrar</b> pide confirmación y deja respaldo; con Deshacer se recupera con el mismo ID.</li>
+        <li><b style="color:var(--text)">Deshacer</b> vuelve atrás tus últimos cambios de esta sesión. <b style="color:var(--text)">Historial</b> muestra quién cambió qué y cuándo en cada fila.</li>
+        <li><b style="color:var(--text)">Filtros rápidos</b> (Pendientes, Vencidos, Próx. 7 días, Este mes, Pagados), buscador y categoría. Tocando el título de una columna se ordena.</li>
+        <li><b style="color:var(--text)">Más</b>: elegir columnas visibles (se recuerda en ese dispositivo), cargar los pagos fijos del mes, copiar lo que ves para pegarlo en Excel y actualizar los datos.</li>
+        <li><b style="color:var(--text)">🎙️</b> carga un pago dictando monto, proveedor y descripción.</li>
+        <li>La raya de color a la izquierda del ID indica el estado: ámbar pendiente, rojo vencido, verde pagado, gris pateable.</li>
+        <li>Si otra persona cambió la misma fila mientras la editabas, la app no pisa su cambio: te muestra lo último y te pide repetirlo.</li>
+      </ul>
+
+      <p><b style="color:var(--text)">Columnas:</b> A ID · B Descripción · C Importe · D Vence · E Estado · F Prov. (código de proveedor) · G Categoría · H Cargado (fecha de alta) · I Pagado el.</p>
+
       <p><b style="color:var(--text)">🏢 Proveedores</b> — ficha de cada proveedor: condición de pago, contacto, historial.</p>
       <p><b style="color:var(--text)">📈 Proyección</b> — cómo va a evolucionar la caja en los próximos 30/60/90 días.</p>
-      <p><b style="color:var(--text)">🔔 Alertas</b> — pagos vencidos o por vencer, ordenados por urgencia.</p>
-      <p style="margin-top:14px; font-size:11px;">Todo número en pantalla tiene un ícono "?" al lado — tocalo para ver cómo se calcula y de dónde sale el dato.</p>
+      <p><b style="color:var(--text)">🔔 Alertas</b> — pagos vencidos o por vencer, ordenados por urgencia. Tocando uno vas directo a su fila en la planilla.</p>
+      <p><b style="color:var(--text)">⚙️ Config</b> (solo admin) — permisos por usuario (ver caja, gestionar proveedores, marcar pagados, borrar pagos) y plantillas de pagos fijos.</p>
+      <p style="margin-top:14px; font-size:11px;">Todo número en pantalla tiene un ícono "?" al lado: tocalo para ver cómo se calcula y de dónde sale el dato.</p>
     </div>
   </div>
 </div>
@@ -527,60 +697,33 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
 </div>
 
 <!-- ============================================================
-     MODAL: Alta / edición de pago
+     MODAL: Historial de cambios de un pago
      ============================================================ -->
-<div class="modal-overlay" id="modalPago">
+<div class="modal-overlay" id="modalHistorial">
   <div class="modal" style="position:relative;">
-    <button class="cerrar" data-cerrar-modal="modalPago">×</button>
-    <h2 id="modalPagoTitulo">Nuevo pago</h2>
-    <input type="hidden" id="pgId">
-    <div class="field">
-      <label>Descripción</label>
-      <input type="text" id="pgDescripcion" placeholder="Ej: compra rodamientos">
-    </div>
-    <div class="field">
-      <label>Proveedor</label>
-      <select id="pgProveedor">
-        <option value="">Sin proveedor / texto libre</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Proveedor (texto libre, si no está en la lista)</label>
-      <input type="text" id="pgProveedorTexto" placeholder="Ej: Rulman Sur">
-    </div>
-    <div class="field">
-      <label>Importe *</label>
-      <input type="number" id="pgImporte" inputmode="decimal" placeholder="45000">
-    </div>
-    <div class="field">
-      <label>Vencimiento</label>
-      <input type="date" id="pgVencimiento">
-    </div>
-    <div class="field">
-      <label>Categoría</label>
-      <select id="pgCategoria">
-        <option value="">Sin categoría</option>
-        <option>Proveedores de productos</option>
-        <option>Logística y envíos</option>
-        <option>Financiero (préstamos, deudas)</option>
-        <option>RRHH (empleados + colaboradores)</option>
-        <option>Impuestos y cargas</option>
-        <option>Servicios generales</option>
-      </select>
-    </div>
-    <div class="field">
-      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; letter-spacing:0; font-size:13px; color:var(--text);">
-        <input type="checkbox" id="pgPateable" style="width:16px; height:16px; accent-color:var(--amber);">
-        Pateable — no contar en Caja / Proyección / Alertas
-      </label>
-    </div>
-    <div id="pgError" style="color:var(--bad); font-size:12px; margin-bottom:10px; min-height:16px;"></div>
-    <div style="display:flex; gap:10px;">
-      <button class="btn" id="btnGuardarPago" style="flex:1;">Guardar</button>
-      <button class="btn secundario oculto" id="btnRevertirPago" style="color:var(--text-dim);">↺ A pendiente</button>
-    </div>
+    <button class="cerrar" data-cerrar-modal="modalHistorial">×</button>
+    <h2 id="plHistTitulo">Historial</h2>
+    <div id="plHistEstado" class="estado"><div class="spinner"></div><div>Cargando historial…</div></div>
+    <ul class="pl-hist" id="plHistLista"></ul>
   </div>
 </div>
+
+<!-- ============================================================
+     MODAL: Copiar para Excel (si el navegador no deja copiar solo)
+     ============================================================ -->
+<div class="modal-overlay" id="modalCopia">
+  <div class="modal" style="position:relative;">
+    <button class="cerrar" data-cerrar-modal="modalCopia">×</button>
+    <h2>Copiar para Excel</h2>
+    <div style="font-size:13px; color:var(--text-dim); margin-bottom:10px;">Tu navegador no dejó copiar automáticamente. El texto ya está seleccionado: copialo y pegalo en Excel.</div>
+    <textarea id="plCopia" readonly></textarea>
+  </div>
+</div>
+
+<!-- Planilla: popover de ayuda, panel "Más" y avisos -->
+<div id="plPop" role="tooltip" hidden></div>
+<div id="plMas" hidden></div>
+<div id="plToast" role="status" hidden></div>
 
 <!-- ============================================================
      MODAL: Carga por voz guiada (sin LLM, gratis)
@@ -671,6 +814,7 @@ nav.tabbar button:disabled{ opacity:.25; cursor:not-allowed; }
 /* ============================================================
    CONFIG
    ============================================================ */
+const APP_VERSION = '2026-10-17.1'; // planilla tipo Excel; Pagos deja de leerse del Excel
 const SUPABASE_URL = 'https://kvewsxrfogosjwehookj.supabase.co';
 const SUPABASE_BASE = SUPABASE_URL + '/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXdzeHJmb2dvc2p3ZWhvb2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3OTA2OTksImV4cCI6MjEwMTM2NjY5OX0.6oyDPFG_8hAAULXCUn6uO7C-abxMSOxxMFFJ_xBFZHY';
@@ -729,6 +873,8 @@ function fmtARS(n) {
 
 function fmtFecha(iso) {
   if (!iso) return '—';
+  // Fecha sola (AAAA-MM-DD): se formatea como texto. Con new Date() se interpreta en UTC y en Argentina muestra el día anterior.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) { const [y, m, d] = String(iso).split('-'); return d + '/' + m + '/' + y; }
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -896,6 +1042,8 @@ document.querySelectorAll('nav.tabbar button[data-tab]').forEach(btn => {
 
 function irATab(nombre) {
   TAB_ACTUAL = nombre;
+  document.querySelector('#app > main').classList.toggle('planilla', nombre === 'pagos');
+  ['plPop', 'plMas'].forEach((id) => { const el = document.getElementById(id); if (el) el.hidden = true; });
   if (nombre !== 'caja') { clearInterval(relojCajaInterval); relojCajaInterval = null; }
   document.querySelectorAll('.tab').forEach(s => s.classList.add('oculto'));
   document.getElementById('tab-' + nombre)?.classList.remove('oculto');
@@ -1013,280 +1161,1010 @@ async function cargarCaja() {
     renderError('cajaEstado', 'No se pudo cargar el estado de caja (' + e.message + ').', cargarCaja);
   }
 }
-let PAGOS_CACHE = [];
+/* ============================================================
+   PESTAÑA PAGOS — PLANILLA TIPO EXCEL
+   Fuente de verdad: tabla `pagos` de Supabase (desde el corte del
+   17/10/2026 la hoja PAGOS del Excel ya no se lee).
+   Lee con pagos-list?todo=1 y escribe con pagos-crud (alta, edición,
+   borrado con respaldo, recuperar, historial). Cada cambio queda
+   registrado en pagos_eventos (lo llena un trigger en la base).
+   Para sumar una columna: agregar un objeto en PL_COLS y, si necesita
+   editor propio, un caso en plEditorHTML().
+   ============================================================ */
 
-// Textos de ayuda de los KPI de Pagos (premisa 7 — nunca un número sin su "?")
-const AYUDA_KPI_PAGOS = {
-  total_pendiente: 'Suma de importes de todos los pagos con estado distinto de "pagado", sin importar si ya vencieron o no. Fuente: tabla pagos en Supabase.',
-  vencidos: 'Cantidad de pagos pendientes cuya fecha de vencimiento ya pasó (comparado contra la fecha de hoy).',
+const PL_CONFIG = {
+  DIAS_PROXIMOS: 7,
+  ANCHO_CELULAR: 640,
+  OCULTAS_EN_CELULAR: ['categoria', 'fecha', 'fecha_pago'],
+  CLAVE_PREFS: 'coraz-pagos-columnas-v1',
+  REFRESCO_MS: 60000,                       // al volver a la app, recarga si pasó más de esto
+  FLUJO_ALTA: ['importe', 'vencimiento', 'categoria'],  // orden de carga de una fila nueva
+  CATEGORIAS: [
+    'Proveedores de productos',
+    'Logística y envíos',
+    'Financiero (préstamos, deudas)',
+    'RRHH (empleados + colaboradores)',
+    'Impuestos y cargas',
+    'Servicios generales',
+  ],
 };
 
-async function cargarPagos(filtros = {}) {
-  const estadoEl = document.getElementById('pagosEstado');
-  const listaEl = document.getElementById('pagosLista');
-  const resumenEl = document.getElementById('pagosResumen');
-  const countEl = document.getElementById('pagosCount');
+// Columnas en el orden de la planilla. "fija" = queda pegada a la izquierda al scrollear.
+const PL_COLS = [
+  { key: 'id_planilla',   label: 'ID',          tipo: 'id',        ancho: 56,  fija: true },
+  { key: 'descripcion',   label: 'Descripción', tipo: 'texto',     ancho: 'var(--pl-w-desc)', fija: true },
+  { key: 'importe',       label: 'Importe',     tipo: 'importe',   ancho: 116, num: true },
+  { key: 'vencimiento',   label: 'Vence',       tipo: 'fecha',     ancho: 92 },
+  { key: 'estado',        label: 'Estado',      tipo: 'estado',    ancho: 112 },
+  { key: 'proveedor_nro', label: 'Prov.',       tipo: 'texto',     ancho: 66 },
+  { key: 'categoria',     label: 'Categoría',   tipo: 'categoria', ancho: 196 },
+  { key: 'fecha',         label: 'Cargado',     tipo: 'fecha',     ancho: 92 },
+  { key: 'fecha_pago',    label: 'Pagado el',   tipo: 'fecha',     ancho: 96 },
+];
+PL_COLS.forEach((c, i) => { c.letra = String.fromCharCode(65 + i); });
+const PL_COL = Object.fromEntries(PL_COLS.map((c) => [c.key, c]));
 
-  estadoEl.classList.remove('oculto', 'error');
-  estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando pagos…</div>`;
-  listaEl.innerHTML = '';
-  resumenEl.innerHTML = '';
-  countEl.textContent = '';
+const PL_FILTROS = [
+  { id: 'todos',      label: 'Todos' },
+  { id: 'pendientes', label: 'Pendientes' },
+  { id: 'vencidos',   label: 'Vencidos' },
+  { id: 'proximos',   label: 'Próx. 7 días' },
+  { id: 'mes',        label: 'Este mes' },
+  { id: 'pagados',    label: 'Pagados' },
+];
 
-  const params = new URLSearchParams();
-  if (filtros.estado) params.set('estado', filtros.estado);
-  if (filtros.categoria) params.set('categoria', filtros.categoria);
-  if (filtros.q) params.set('q', filtros.q);
+const PL_AYUDA = {
+  pendiente: '<b>Total pendiente.</b> Suma del importe de todos los pagos que no están pagados ni marcados como pateables. Los que no tienen importe cargado no suman (se cuentan en "Sin importe"). Fuente: tabla de pagos en Supabase.',
+  vencido: '<b>Vencido.</b> Pagos pendientes (no pateables) cuya fecha de vencimiento ya pasó, comparada con la fecha de hoy en Argentina. Es deuda exigible ya.',
+  proximos: '<b>Próximos 7 días.</b> Pagos pendientes (no pateables) que vencen entre hoy y dentro de 7 días, sin contar los ya vencidos.',
+  sinImporte: '<b>Sin importe.</b> Pagos pendientes cargados sin monto (por ejemplo, la quincena de Brown antes de la liquidación o los pagos fijos del mes). No suman en los totales hasta que los completes.',
+  suma: '<b>Suma de la vista.</b> Como la barra de estado de Excel: suma el importe de las filas que estás viendo con los filtros actuales, incluidas las pagadas.',
+  pendVista: '<b>Pendiente en la vista.</b> De las filas que estás viendo, suma solo las pendientes y vencidas (sin pateables ni pagadas).',
+};
 
-  try {
-    const resp = await fetchApi(SUPABASE_BASE + '/pagos-list?' + params.toString(), {
-      headers: { Authorization: AUTH }
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    if (!data.ok) throw new Error(data.error || 'error desconocido');
+const PL_ETIQUETA = { pagado: 'Pagado', pateable: 'Pateable', completar: 'Sin importe', vencido: 'Vencido', pendiente: 'Pendiente', borrador: 'Nueva' };
 
-    estadoEl.classList.add('oculto');
+// ---------- Estado de la planilla ----------
+const P = {
+  filas: [],
+  cargado: false,
+  cargando: false,
+  ultimaCarga: 0,
+  hoy: plHoyAR(),
+  sel: null,                 // { id, key } — id = id interno (string) o 'nuevo' para la fila en borrador
+  orden: { key: 'id_planilla', dir: -1 },
+  filtro: 'todos',
+  q: '',
+  cat: '',
+  ocultas: new Set(),
+  prefsListas: false,
+  undo: [],                  // cambios propios de esta sesión, para Deshacer
+  confirmandoBorrado: false,
+  enfocar: false,            // dar foco al editor en el próximo render de la barra fx
+  guardando: false,
+  borrador: null,            // fila nueva todavía sin guardar (falta la descripción)
+  flujoAlta: null,           // id de la fila recién creada: guía importe → vence → categoría
+  ultimaNueva: null,
+  selPendiente: null,        // fila a seleccionar cuando termine de cargar (viene de Alertas)
+};
 
-    // Resumen KPI
-    resumenEl.innerHTML =
-      kpiHTML({
-        id: 'pag-total-pend',
-        label: 'Total pendiente',
-        valor: fmtARS(data.resumen.total_pendiente),
-        ayuda: AYUDA_KPI_PAGOS.total_pendiente
-      }) +
-      kpiHTML({
-        id: 'pag-vencidos',
-        label: 'Vencidos',
-        valor: data.resumen.vencidos,
-        ayuda: AYUDA_KPI_PAGOS.vencidos
-      }) +
-      (data.resumen.pateables_cantidad > 0 ? kpiHTML({
-        id: 'pag-pateables',
-        label: 'Pateables',
-        valor: data.resumen.pateables_cantidad + ' · ' + fmtARS(data.resumen.pateables_total),
-        ayuda: 'Pagos pendientes marcados como "pateable": los postergaste a propósito, así que no cuentan en el total pendiente ni en vencidos de arriba.'
-      }) : '');
-
-    countEl.textContent = '(' + data.count + ')';
-
-    if (data.pagos.length === 0) {
-      PAGOS_CACHE = [];
-      listaEl.innerHTML = `<div class="estado"><div style="font-size:22px;">🗂️</div><div>No hay pagos que coincidan con el filtro.</div></div>`;
-      return;
-    }
-
-    PAGOS_CACHE = data.pagos;
-    listaEl.innerHTML = data.pagos.map(renderFilaPago).join('');
-  } catch (e) {
-    renderError('pagosEstado', 'No se pudieron cargar los pagos (' + e.message + ').', () => cargarPagos(filtros));
-  }
+/* ---------- Helpers ---------- */
+// "Hoy" en hora Argentina (UTC-3), igual que el backend: no depende de la zona del celular.
+function plHoyAR() { return new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10); }
+function plSumarDias(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function plFmtFecha(iso) {
+  if (!iso) return '';
+  const [y, m, d] = String(iso).slice(0, 10).split('-');
+  return d && m && y ? d + '/' + m + '/' + y.slice(2) : String(iso);
 }
-
-function renderFilaPago(p) {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const realizado = (p.estado || '').toUpperCase() === 'REALIZADO';
-  const vencido = !realizado && p.vencimiento && p.vencimiento < hoy;
-  const faltaCompletar = !realizado && (!p.importe || !p.vencimiento);
-  let badge = '<span class="badge ok">Pagado</span>';
-  if (!realizado) {
-    if (p.pateable) badge = '<span class="badge" style="background:rgba(168,158,140,.15); color:var(--text-dim);">Pateable</span>';
-    else if (faltaCompletar) badge = '<span class="badge" style="background:rgba(212,161,42,.2); color:var(--warn);">⚠ Completar</span>';
-    else badge = vencido ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Pendiente</span>';
-  }
-  const puedeMarcar = USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
-  return `
-    <div class="pago-fila" data-id="${p.id}" style="padding:12px 0; border-top:1px solid var(--line);">
-      <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; cursor:pointer;" data-editar="${p.id}">
-        <div style="min-width:0;">
-          <div style="font-size:13.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.descripcion || p.proveedor_nro || 'Sin descripción')}</div>
-          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${escapeHtml(p.proveedor_nro || '—')} · ${escapeHtml(p.categoria || 'Sin categoría')} · vence ${fmtFecha(p.vencimiento)}</div>
-        </div>
-        <div style="text-align:right; flex:none;">
-          <div class="mono" style="font-size:14px; color:var(--amber);">${fmtARS(p.importe)}</div>
-          <div style="margin-top:4px;">${badge}</div>
-        </div>
-      </div>
-      ${puedeMarcar && !realizado && !faltaCompletar ? `<button class="btn secundario" data-marcar-pagado="${p.id}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
-      ${puedeMarcar && !realizado && faltaCompletar ? `<div style="font-size:11px; color:var(--text-dim); margin-top:8px;">Completá el importe para poder marcarlo como pagado.</div>` : ''}
-    </div>
-  `;
-}
+function plFmtFechaLarga(iso) { const s = plFmtFecha(iso); return s ? s.slice(0, 6) + '20' + s.slice(6) : ''; }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-document.getElementById('btnAplicarFiltros').addEventListener('click', () => {
-  cargarPagos({
-    estado: document.getElementById('fEstado').value,
-    categoria: document.getElementById('fCategoria').value,
-    q: document.getElementById('fBusqueda').value.trim(),
-  });
-});
+// Acepta "45000", "45.000", "45.000,50", "$ 45000", "45000.5". Vacío = null.
+function plParseImporte(txt) {
+  let t = String(txt ?? '').replace(/\$/g, '').replace(/\s/g, '').trim();
+  if (t === '') return null;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+}
 
-document.getElementById('btnCargarMesFijo').addEventListener('click', async () => {
-  const confirmado = await confirmarAccion('Se van a crear los pagos pendientes configurados en "Pagos fijos mensuales" (Configuración) que todavía no cargaste este mes. No duplica los que ya generaste.', 'Cargar pagos fijos del mes');
-  if (!confirmado) return;
-  const btn = document.getElementById('btnCargarMesFijo');
-  btn.disabled = true; btn.textContent = 'Cargando…';
+function plNormalizar(p) {
+  const imp = p.importe;
+  return { ...p, importe: imp === null || imp === undefined || imp === '' ? null : Number(imp) };
+}
+
+function plEstado(f) {
+  if (f === P.borrador) return 'borrador';
+  if (String(f.estado || '').toUpperCase() === 'REALIZADO') return 'pagado';
+  if (f.pateable) return 'pateable';
+  if (f.importe === null || f.importe === undefined) return 'completar';
+  if (f.vencimiento && f.vencimiento < P.hoy) return 'vencido';
+  return 'pendiente';
+}
+
+const plPuedeMarcar = () => !!USUARIO && (USUARIO.es_admin || !!(USUARIO.permisos && USUARIO.permisos.marcar_pagado));
+const plPuedeBorrar = () => !!USUARIO && (USUARIO.es_admin || !!(USUARIO.permisos && USUARIO.permisos.borrar_pagos));
+
+function plFila(id) {
+  if (id === 'nuevo') return P.borrador;
+  return P.filas.find((f) => String(f.id) === String(id)) || null;
+}
+function plColsVisibles() { return PL_COLS.filter((c) => !P.ocultas.has(c.key)); }
+
+function plIniciarPrefs() {
+  if (P.prefsListas) return;
+  P.prefsListas = true;
+  let guardadas = null;
+  try { const v = localStorage.getItem(PL_CONFIG.CLAVE_PREFS); guardadas = v ? JSON.parse(v) : null; } catch { guardadas = null; }
+  P.ocultas = new Set(Array.isArray(guardadas) ? guardadas : (window.innerWidth <= PL_CONFIG.ANCHO_CELULAR ? PL_CONFIG.OCULTAS_EN_CELULAR : []));
+}
+function plGuardarPrefs() {
+  try { localStorage.setItem(PL_CONFIG.CLAVE_PREFS, JSON.stringify([...P.ocultas])); } catch { /* sin storage: no pasa nada */ }
+}
+
+let plToastTimer = null;
+function plToast(msg, tipo) {
+  const el = document.getElementById('plToast');
+  el.textContent = msg;
+  el.classList.toggle('error', tipo === 'error');
+  el.hidden = false;
+  clearTimeout(plToastTimer);
+  plToastTimer = setTimeout(() => { el.hidden = true; }, tipo === 'error' ? 5000 : 2800);
+}
+
+/* ---------- API ---------- */
+// GET con reintentos; escrituras sin reintento automático (para no duplicar altas).
+async function plApi(metodo, ruta, body) {
+  const resp = await fetchApi(SUPABASE_BASE + ruta, {
+    method: metodo,
+    headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }, { timeout: 20000, reintentos: metodo === 'GET' ? 2 : 0 });
+  let data = null;
+  try { data = await resp.json(); } catch { /* respuesta sin JSON */ }
+  if (!resp.ok || !data || data.ok === false) {
+    const msg = resp.status === 401 ? 'tu sesión venció: salí y volvé a entrar' : ((data && data.error) || ('error HTTP ' + resp.status));
+    const err = new Error(msg);
+    err.status = resp.status; err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+function plReemplazar(pago) {
+  const n = plNormalizar(pago);
+  const i = P.filas.findIndex((x) => String(x.id) === String(n.id));
+  if (i >= 0) P.filas[i] = n; else P.filas.push(n);
+  return n;
+}
+
+function plManejarError(e) {
+  if (e.status === 409 && e.data && e.data.pago) {
+    const n = plReemplazar(e.data.pago);
+    plToast('Otra persona cambió la fila ' + n.id_planilla + ' recién. Te muestro lo último: repetí el cambio si hace falta.', 'error');
+  } else if (e.status === 404) {
+    plToast('Ese pago ya no existe (puede que lo hayan borrado). Actualizo la planilla.', 'error');
+    cargarPagos({ silencioso: true });
+  } else {
+    plToast('No se guardó: ' + e.message, 'error');
+  }
+}
+
+/* ---------- Carga ---------- */
+async function cargarPagos({ silencioso = false } = {}) {
+  if (P.cargando) return;
+  P.cargando = true;
+  plIniciarPrefs();
+  const wrap = document.getElementById('plWrap');
+  if (!P.cargado) wrap.innerHTML = `<div class="estado"><div class="spinner"></div><div>Cargando pagos…</div></div>`;
   try {
-    const resp = await fetchApi(SUPABASE_BASE + '/pagos-fijos-generar', {
-      method: 'POST', headers: { Authorization: AUTH, 'Content-Type': 'application/json' }, body: '{}',
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
-    if (data.mensaje) {
-      alertInline(data.mensaje + ' — configurala en Configuración.');
+    const data = await plApi('GET', '/pagos-list?todo=1');
+    P.filas = (data.pagos || []).map(plNormalizar);
+    if (data.hoy) P.hoy = data.hoy;
+    P.cargado = true;
+    P.ultimaCarga = Date.now();
+    if (P.sel && P.sel.id !== 'nuevo' && !plFila(P.sel.id)) P.sel = null;
+    if (P.selPendiente) {
+      const f = plFila(P.selPendiente);
+      if (f) { P.sel = { id: String(f.id), key: 'estado' }; plMostrarTodo(); }
+      P.selPendiente = null;
+    }
+    plRenderTodo();
+    plMarcarSeleccion();
+  } catch (e) {
+    if (P.cargado) {
+      if (!silencioso) plToast('No se pudo actualizar la planilla: ' + e.message, 'error');
     } else {
-      alertInline(`Creados: ${data.creados.length}${data.omitidos.length ? ' · Ya estaban cargados: ' + data.omitidos.length : ''}`);
+      wrap.innerHTML = `<div class="estado error"><div style="font-size:22px;">⚠️</div><div>No se pudieron cargar los pagos (${escapeHtml(e.message)}).</div><button class="btn-reintentar" type="button" id="plReintentar">Reintentar</button></div>`;
     }
-    cargarPagos();
-  } catch (e) {
-    alertInline('No se pudo cargar: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '📅 Cargar pagos fijos del mes';
+    P.cargando = false;
   }
-});
+}
 
-/* ---------- Alta / edición de pago ---------- */
+function plMostrarTodo() {
+  P.filtro = 'todos'; P.q = ''; P.cat = '';
+  const q = document.getElementById('plQ'); if (q) q.value = '';
+}
 
-// Delegación de eventos: la lista se re-renderiza seguido, así que enganchamos
-// los clicks una sola vez sobre el contenedor en vez de cada vez que se pinta.
-document.getElementById('pagosLista').addEventListener('click', (e) => {
-  const btnMarcar = e.target.closest('[data-marcar-pagado]');
-  if (btnMarcar) { marcarPagado(btnMarcar.dataset.marcarPagado); return; }
-  const fila = e.target.closest('[data-editar]');
-  if (fila) abrirModalPago(fila.dataset.editar);
-});
+/* ---------- Filtros y orden ---------- */
+function plPasaFiltro(f, filtro) {
+  const e = plEstado(f);
+  switch (filtro) {
+    case 'pendientes': return e !== 'pagado';
+    case 'vencidos':   return e === 'vencido';
+    case 'proximos':   return e === 'pendiente' && f.vencimiento && f.vencimiento >= P.hoy && f.vencimiento <= plSumarDias(P.hoy, PL_CONFIG.DIAS_PROXIMOS);
+    case 'mes':        return (f.vencimiento || f.fecha || '').slice(0, 7) === P.hoy.slice(0, 7);
+    case 'pagados':    return e === 'pagado';
+    default:           return true;
+  }
+}
 
-async function poblarSelectProveedores(seleccionado) {
-  const sel = document.getElementById('pgProveedor');
-  sel.innerHTML = '<option value="">Sin proveedor / texto libre</option>';
-  try {
-    const resp = await fetchApi(SUPABASE_BASE + '/proveedores-crud', { headers: { Authorization: AUTH } });
-    const data = await resp.json();
-    if (data.ok) {
-      data.proveedores.forEach(p => {
-        const op = document.createElement('option');
-        op.value = p.id; op.textContent = p.nombre;
-        if (p.id === seleccionado) op.selected = true;
-        sel.appendChild(op);
-      });
+function plFilasVisibles() {
+  const q = P.q.trim().toLowerCase();
+  const lista = P.filas.filter((f) => {
+    if (!plPasaFiltro(f, P.filtro)) return false;
+    if (P.cat && (f.categoria || '') !== P.cat) return false;
+    if (q) {
+      const txt = [f.descripcion, f.proveedor_nro, f.id_planilla, f.categoria].join(' ').toLowerCase();
+      if (!txt.includes(q)) return false;
     }
-  } catch (e) { /* si falla, el select queda con solo la opción libre — no bloquea el alta */ }
+    return true;
+  });
+  const { key, dir } = P.orden;
+  lista.sort((a, b) => {
+    const va = key === 'estado' ? plEstado(a) : a[key];
+    const vb = key === 'estado' ? plEstado(b) : b[key];
+    const vaVacio = va === null || va === undefined || va === '';
+    const vbVacio = vb === null || vb === undefined || vb === '';
+    if (vaVacio && vbVacio) return 0;
+    if (vaVacio) return 1;            // vacíos siempre al final
+    if (vbVacio) return -1;
+    if (typeof va === 'string') return va.localeCompare(vb, 'es') * dir;
+    return (va - vb) * dir;
+  });
+  return P.borrador ? [P.borrador, ...lista] : lista;
 }
 
-async function abrirModalPago(id) {
-  const p = id ? PAGOS_CACHE.find(x => String(x.id) === String(id)) : null;
-  const realizado = p && (p.estado || '').toUpperCase() === 'REALIZADO';
-  document.getElementById('modalPagoTitulo').textContent = p ? 'Editar pago' : 'Nuevo pago';
-  document.getElementById('pgId').value = p ? p.id : '';
-  document.getElementById('pgDescripcion').value = p ? (p.descripcion || '') : '';
-  document.getElementById('pgProveedorTexto').value = p ? (p.proveedor_nro || '') : '';
-  document.getElementById('pgImporte').value = p ? p.importe : '';
-  document.getElementById('pgVencimiento').value = p ? (p.vencimiento || '') : '';
-  document.getElementById('pgCategoria').value = p ? (p.categoria || '') : '';
-  document.getElementById('pgPateable').checked = p ? !!p.pateable : false;
-  document.getElementById('pgError').textContent = '';
-  const puedeRevertir = realizado && USUARIO && (USUARIO.es_admin || USUARIO.permisos.marcar_pagado);
-  document.getElementById('btnRevertirPago').classList.toggle('oculto', !puedeRevertir);
-  await poblarSelectProveedores(p ? p.proveedor_id : null);
-  document.getElementById('modalPago').classList.add('show');
+function plAsegurarVisible(id) {
+  const f = plFila(id);
+  if (!f) return;
+  const q = P.q.trim().toLowerCase();
+  const visible = plPasaFiltro(f, P.filtro) && (!P.cat || (f.categoria || '') === P.cat) &&
+    (!q || [f.descripcion, f.proveedor_nro, f.id_planilla, f.categoria].join(' ').toLowerCase().includes(q));
+  if (!visible) plMostrarTodo();
 }
 
-document.getElementById('btnNuevoPago').addEventListener('click', () => abrirModalPago(null));
+/* ---------- Render ---------- */
+function plRenderKpis() {
+  let pend = 0, pendN = 0, venc = 0, vencN = 0, prox = 0, proxN = 0, sinImp = 0;
+  const limite = plSumarDias(P.hoy, PL_CONFIG.DIAS_PROXIMOS);
+  P.filas.forEach((f) => {
+    const e = plEstado(f);
+    if (e === 'completar') sinImp++;
+    if (e === 'pendiente' || e === 'vencido') { pend += f.importe; pendN++; }
+    if (e === 'vencido') { venc += f.importe; vencN++; }
+    if (e === 'pendiente' && f.vencimiento && f.vencimiento >= P.hoy && f.vencimiento <= limite) { prox += f.importe; proxN++; }
+  });
+  const k = (id, label, valor, sub, clase) => `
+    <div class="pl-kpi ${clase || ''}">
+      <div class="pl-kpi-top">${label}<button class="pl-help" type="button" data-pl-help="${id}" aria-label="Qué es ${label}">?</button></div>
+      <div class="pl-kpi-v">${valor}</div>
+      <div class="pl-kpi-s">${sub}</div>
+    </div>`;
+  const n = (c) => c + (c === 1 ? ' pago' : ' pagos');
+  document.getElementById('plKpis').innerHTML =
+    k('pendiente', 'Pendiente', fmtARS(pend), n(pendN)) +
+    k('vencido', 'Vencido', fmtARS(venc), n(vencN), vencN ? 'bad' : '') +
+    k('proximos', 'Próx. 7 días', fmtARS(prox), n(proxN)) +
+    k('sinImporte', 'Sin importe', String(sinImp), 'a completar', sinImp ? 'warn' : '');
+}
 
-document.getElementById('btnGuardarPago').addEventListener('click', () => guardarPago());
+function plRenderChips() {
+  const cats = [...new Set([...PL_CONFIG.CATEGORIAS, ...P.filas.map((f) => f.categoria).filter((c) => c && c !== '0')])];
+  document.getElementById('plChips').innerHTML = PL_FILTROS.map((fl) => {
+    const cant = P.filas.filter((f) => plPasaFiltro(f, fl.id)).length;
+    return `<button class="pl-chip" type="button" data-pl-filtro="${fl.id}" aria-pressed="${P.filtro === fl.id}">${fl.label}<b>${cant}</b></button>`;
+  }).join('') +
+  `<select class="pl-selcat" id="plSelCat" aria-label="Filtrar por categoría">
+     <option value="">Todas las categorías</option>
+     ${cats.map((c) => `<option value="${escapeHtml(c)}" ${P.cat === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+   </select>`;
+}
 
-document.getElementById('btnRevertirPago').addEventListener('click', async () => {
-  const id = document.getElementById('pgId').value;
-  if (!id) return;
-  const ok = await revertirPago(id);
-  if (ok) document.getElementById('modalPago').classList.remove('show');
-});
+function plAnchoCss(c) { return typeof c.ancho === 'number' ? c.ancho + 'px' : c.ancho; }
 
-async function guardarPago(datosVoz) {
-  const errEl = document.getElementById('pgError');
-  const btn = document.getElementById('btnGuardarPago');
-  errEl.textContent = '';
+function plRenderTabla() {
+  const cols = plColsVisibles();
+  const filas = plFilasVisibles();
+  const fijas = cols.filter((c) => c.fija);
+  const lefts = {}; let acc = '0px';
+  fijas.forEach((c) => { lefts[c.key] = acc; acc = `calc(${acc} + ${plAnchoCss(c)})`; });
+  const ultFija = fijas.length ? fijas[fijas.length - 1].key : null;
 
-  const id = document.getElementById('pgId').value;
-  const importe = Number(document.getElementById('pgImporte').value);
-  const descripcion = document.getElementById('pgDescripcion').value.trim();
-  const proveedorTexto = document.getElementById('pgProveedorTexto').value.trim();
+  const colgroup = '<colgroup>' + cols.map((c) => `<col style="width:${plAnchoCss(c)}">`).join('') + '</colgroup>';
+  const thead = '<thead><tr>' + cols.map((c) => {
+    const ord = P.orden.key === c.key ? `<span class="o">${P.orden.dir === 1 ? '▲' : '▼'}</span>` : '';
+    const fija = c.fija ? `class="fija ${c.key === ultFija ? 'ult' : ''}" style="left:${lefts[c.key]}"` : '';
+    return `<th ${fija} scope="col"><button class="pl-th ${c.num ? 'num' : ''}" type="button" data-pl-orden="${c.key}" aria-label="Ordenar por ${c.label}"><span class="l">${c.letra}</span><span class="n">${c.label}${ord}</span></button></th>`;
+  }).join('') + '</tr></thead>';
 
-  if (!importe || importe <= 0) { errEl.textContent = 'El importe tiene que ser mayor a 0.'; return; }
-  if (!descripcion && !proveedorTexto) { errEl.textContent = 'Completá descripción o proveedor.'; return; }
+  let tbody;
+  if (filas.length === 0) {
+    const sinDatos = P.filas.length === 0;
+    tbody = `<tbody><tr><td class="vacio" colspan="${cols.length}">${sinDatos ? 'Todavía no hay pagos cargados. Tocá "+ Fila" para cargar el primero.' : 'No hay pagos que coincidan con este filtro.<br><button class="pl-btn" type="button" id="plLimpiar">Ver todos</button>'}</td></tr></tbody>`;
+  } else {
+    const selId = P.sel ? String(P.sel.id) : null;
+    tbody = '<tbody>' + filas.map((f) => {
+      const e = plEstado(f);
+      const idFila = f === P.borrador ? 'nuevo' : String(f.id);
+      const filaSel = selId === idFila;
+      const trCls = `r-${e} ${filaSel ? 'rowsel' : ''} ${String(P.ultimaNueva) === idFila ? 'nueva' : ''}`;
+      return `<tr class="${trCls}" data-id="${idFila}">` + cols.map((c) => {
+        const cls = [];
+        let style = '';
+        if (c.fija) { cls.push('fija'); if (c.key === ultFija) cls.push('ult'); style = `style="left:${lefts[c.key]}"`; }
+        if (filaSel && P.sel.key === c.key) cls.push('sel');
+        cls.push(plClaseCelda(c, f, e));
+        return `<td class="${cls.join(' ')}" ${style} data-key="${c.key}">${plContenidoCelda(c, f, e)}</td>`;
+      }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+  }
+  document.getElementById('plWrap').innerHTML = `<table class="pl-tabla">${colgroup}${thead}${tbody}</table>`;
+  P.ultimaNueva = null;
+}
 
-  const payload = {
-    descripcion: descripcion || null,
-    proveedor_nro: proveedorTexto || null,
-    proveedor_id: document.getElementById('pgProveedor').value || null,
-    importe,
-    vencimiento: document.getElementById('pgVencimiento').value || null,
-    categoria: document.getElementById('pgCategoria').value || null,
-    pateable: document.getElementById('pgPateable').checked,
-  };
-  if (id) payload.id = id;
+function plClaseCelda(c, f, e) {
+  if (c.tipo === 'id') return 'idc';
+  if (c.tipo === 'importe') return 'num';
+  if (c.key === 'vencimiento') return 'mono' + (e === 'vencido' ? ' txt-bad' : '');
+  if (c.tipo === 'fecha' || c.key === 'proveedor_nro') return 'mono';
+  if (c.tipo === 'estado') return 'estc';
+  return '';
+}
 
-  btn.disabled = true; btn.textContent = 'Guardando…';
-  try {
-    const resp = await fetchApi(SUPABASE_BASE + '/pagos-crud', {
-      method: id ? 'PUT' : 'POST',
-      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
-    document.getElementById('modalPago').classList.remove('show');
-    cargarPagos();
-  } catch (e) {
-    errEl.textContent = 'No se pudo guardar: ' + e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = 'Guardar';
+function plContenidoCelda(c, f, e) {
+  const v = f[c.key];
+  switch (c.tipo) {
+    case 'id':      return f === P.borrador ? '<span class="pl-nueva-tag">nueva</span>' : escapeHtml(v ?? '—');
+    case 'importe': return f === P.borrador ? '' : (v === null || v === undefined ? '<span class="pl-falta">completar</span>' : fmtARS(v));
+    case 'fecha':   return plFmtFecha(v);
+    case 'estado':  return `<span class="pl-pill p-${e}">${PL_ETIQUETA[e]}</span>`;
+    default:        return escapeHtml(v ?? '');
   }
 }
 
-async function marcarPagado(id) {
-  const confirmado = await confirmarAccion('Se va a registrar como pagado hoy (' + fmtFecha(new Date().toISOString()) + ').', 'Marcar como pagado');
-  if (!confirmado) return;
-  try {
-    const resp = await fetchApi(SUPABASE_BASE + '/pagos-crud', {
-      method: 'PUT',
-      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, estado: 'REALIZADO' }),
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
-    cargarPagos();
-  } catch (e) {
-    alertInline('No se pudo marcar como pagado: ' + e.message);
+function plEditorHTML(c, f) {
+  const v = f[c.key];
+  const okNo = `<button class="pl-ico ok" type="button" id="plOk" aria-label="Confirmar">✓</button>
+                <button class="pl-ico" type="button" id="plNo" aria-label="Cancelar">✕</button>`;
+  if (f === P.borrador && c.key !== 'descripcion') {
+    return `<span class="pl-hint">Primero escribí la descripción de la fila nueva.</span>`;
+  }
+  switch (c.tipo) {
+    case 'id':
+      return `<span class="pl-hint">El ID lo asigna la app (sigue la numeración del Excel). No se edita.</span>`;
+    case 'texto':
+      return `<input class="pl-in" id="plIn" type="text" value="${escapeHtml(v ?? '')}" autocomplete="off" enterkeyhint="done" aria-label="${c.label}" ${c.key === 'descripcion' ? 'placeholder="Ej: BBA, Brown 1ra quincena…"' : ''}>${okNo}`;
+    case 'importe':
+      return `<input class="pl-in num" id="plIn" type="text" inputmode="decimal" value="${v === null || v === undefined ? '' : escapeHtml(v)}" placeholder="vacío = completar después" autocomplete="off" enterkeyhint="done" aria-label="Importe">${okNo}`;
+    case 'fecha':
+      if (c.key === 'fecha_pago' && plEstado(f) !== 'pagado') {
+        return `<span class="pl-hint">Se completa sola al marcar el pago como pagado.</span>`;
+      }
+      return `<input class="pl-in" id="plIn" type="date" value="${escapeHtml(v || '')}" aria-label="${c.label}">
+              ${c.key === 'fecha' ? '' : '<button class="pl-ico" type="button" id="plVaciar" aria-label="Dejar vacía" title="Dejar vacía">⌫</button>'}`;
+    case 'estado': {
+      const e = plEstado(f);
+      const puede = plPuedeMarcar();
+      const bloqueaSalirDePagado = e === 'pagado' && !puede;
+      return `<div class="pl-seg" role="group" aria-label="Estado">
+        <button type="button" class="s-pend" data-pl-estado="pendiente" aria-pressed="${e !== 'pagado' && !f.pateable}" ${bloqueaSalirDePagado ? 'disabled' : ''}>Pendiente</button>
+        <button type="button" class="s-pag" data-pl-estado="pagado" aria-pressed="${e === 'pagado'}" ${!puede || e === 'completar' ? 'disabled' : ''} ${e === 'completar' ? 'title="Falta el importe"' : ''}>Pagado</button>
+        <button type="button" class="s-pat" data-pl-estado="pateable" aria-pressed="${!!f.pateable && e !== 'pagado'}" ${bloqueaSalirDePagado ? 'disabled' : ''}>Pateable</button>
+      </div>`;
+    }
+    case 'categoria': {
+      const cats = [...new Set([...PL_CONFIG.CATEGORIAS, f.categoria].filter((x) => x && x !== '0'))];
+      return `<select class="pl-in" id="plIn" aria-label="Categoría">
+        <option value="">Sin categoría</option>
+        ${cats.map((x) => `<option value="${escapeHtml(x)}" ${x === f.categoria ? 'selected' : ''}>${escapeHtml(x)}</option>`).join('')}
+      </select>`;
+    }
+  }
+  return '';
+}
+
+function plRenderFbar() {
+  const field = document.getElementById('plField');
+  const acc = document.getElementById('plAcc');
+  const f = P.sel ? plFila(P.sel.id) : null;
+  if (!f) {
+    P.sel = null;
+    document.getElementById('plRef').textContent = '—';
+    field.innerHTML = `<span class="pl-hint">${P.cargado ? 'Tocá una celda para ver o editar su valor' : 'Cargando…'}</span>`;
+    acc.hidden = true; acc.innerHTML = '';
+    return;
+  }
+  const c = PL_COL[P.sel.key];
+  document.getElementById('plRef').textContent = c.letra + (f === P.borrador ? '·nueva' : f.id_planilla ?? '');
+  if (P.guardando) {
+    field.innerHTML = `<span class="pl-lbl">${c.label}</span><span class="pl-guardando"><span class="spinner"></span>Guardando…</span>`;
+    acc.hidden = true;
+    return;
+  }
+  field.innerHTML = `<span class="pl-lbl">${c.label}</span>` + plEditorHTML(c, f);
+
+  const e = plEstado(f);
+  acc.hidden = false;
+  if (f === P.borrador) {
+    acc.innerHTML = `<span class="msg">Fila nueva: escribí la descripción y confirmá con ✓. Después te llevo al importe.</span>
+      <button class="pl-btn" type="button" data-pl-acc="cancelarNueva">Cancelar</button>`;
+  } else if (P.confirmandoBorrado) {
+    acc.innerHTML = `<span class="msg">¿Borrar la fila ${escapeHtml(f.id_planilla)}${f.descripcion ? ' (' + escapeHtml(f.descripcion) + ')' : ''}? Queda respaldo y se puede deshacer.</span>
+      <button class="pl-btn" type="button" data-pl-acc="cancelarBorrar">Cancelar</button>
+      <button class="pl-btn danger fill" type="button" data-pl-acc="borrar">Borrar</button>`;
+  } else {
+    const puede = plPuedeMarcar();
+    const botonEstado = e === 'pagado'
+      ? `<button class="pl-btn" type="button" data-pl-acc="pendiente" ${puede ? '' : 'disabled title="Sin permiso"'}>↺ Volver a pendiente</button>`
+      : `<button class="pl-btn" type="button" data-pl-acc="pagado" ${!puede ? 'disabled title="Sin permiso"' : (e === 'completar' ? 'disabled title="Falta el importe"' : '')}>✓ Marcar pagado</button>`;
+    acc.innerHTML = botonEstado +
+      `<button class="pl-btn" type="button" data-pl-acc="duplicar">Duplicar</button>
+       <button class="pl-btn" type="button" data-pl-acc="historial">Historial</button>
+       ${plPuedeBorrar() ? '<button class="pl-btn danger" type="button" data-pl-acc="pedirBorrar">Borrar</button>' : ''}
+       <button class="pl-btn" type="button" data-pl-acc="soltar">Listo</button>`;
+  }
+  if (P.enfocar) {
+    P.enfocar = false;
+    const inp = document.getElementById('plIn');
+    if (inp && inp.tagName === 'INPUT' && inp.type !== 'date') { inp.focus(); if (inp.select) inp.select(); }
   }
 }
 
-async function revertirPago(id) {
-  const confirmado = await confirmarAccion('Vuelve a quedar como pendiente y se borra la fecha de pago registrada.', 'Volver a pendiente');
-  if (!confirmado) return false;
+function plRenderStatus() {
+  const filas = plFilasVisibles().filter((f) => f !== P.borrador);
+  const suma = filas.reduce((a, f) => a + (Number(f.importe) || 0), 0);
+  const pend = filas.filter((f) => ['pendiente', 'vencido'].includes(plEstado(f))).reduce((a, f) => a + f.importe, 0);
+  const u = P.undo.length;
+  document.getElementById('plStatus').innerHTML = `
+    <span class="item">Filas <b>${filas.length}</b></span>
+    <span class="item">Suma <b>${fmtARS(suma)}</b><button class="pl-help" type="button" data-pl-help="suma" aria-label="Qué es la suma">?</button></span>
+    <span class="item">Pendiente en vista <b>${fmtARS(pend)}</b><button class="pl-help" type="button" data-pl-help="pendVista" aria-label="Qué es pendiente en vista">?</button></span>
+    <span class="sp"></span>
+    <button class="pl-btn" type="button" id="plUndo" ${u && !P.guardando ? '' : 'disabled'}>↶ Deshacer${u ? ' (' + u + ')' : ''}</button>`;
+}
+
+function plRenderTodo() {
+  if (!P.cargado) return;
+  plRenderKpis(); plRenderChips(); plRenderTabla(); plRenderFbar(); plRenderStatus();
+}
+
+// Cambio de selección liviano: mueve clases sin redibujar la tabla
+function plMarcarSeleccion() {
+  const wrap = document.getElementById('plWrap');
+  wrap.querySelectorAll('td.sel').forEach((td) => td.classList.remove('sel'));
+  wrap.querySelectorAll('tr.rowsel').forEach((tr) => tr.classList.remove('rowsel'));
+  if (!P.sel) return;
+  const tr = wrap.querySelector(`tr[data-id="${CSS.escape(String(P.sel.id))}"]`);
+  if (!tr) return;
+  tr.classList.add('rowsel');
+  const td = tr.querySelector(`td[data-key="${P.sel.key}"]`);
+  if (td) { td.classList.add('sel'); td.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+}
+
+/* ---------- Escritura ---------- */
+function plEditorModificado() {
+  const inp = document.getElementById('plIn');
+  if (!P.sel || !inp) return false;
+  const f = plFila(P.sel.id); const c = PL_COL[P.sel.key];
+  if (!f || !c || inp.tagName === 'SELECT' || inp.type === 'date') return false;
+  const actual = f[c.key];
+  return inp.value !== (actual === null || actual === undefined ? '' : String(actual));
+}
+
+// Lee la barra fx, valida y guarda. Devuelve true si quedó bien (o no había nada que guardar).
+async function plConfirmarEditor({ silencioso = false } = {}) {
+  const inp = document.getElementById('plIn');
+  if (!P.sel || !inp || P.guardando) return true;
+  const f = plFila(P.sel.id); const c = PL_COL[P.sel.key];
+  if (!f || !c) return true;
+  let valor = inp.value;
+  if (c.tipo === 'importe') {
+    valor = plParseImporte(valor);
+    if (Number.isNaN(valor) || (valor !== null && valor <= 0)) {
+      if (!silencioso) plToast('El importe no es válido. Ej: 45000 o 45.000,50 (o vacío para completar después).', 'error');
+      return false;
+    }
+  } else if (c.tipo === 'texto') {
+    valor = valor.trim();
+    if (c.key === 'descripcion' && !valor) { if (!silencioso) plToast('La descripción no puede quedar vacía.', 'error'); return false; }
+    valor = valor || null;
+  } else if (c.tipo === 'fecha') {
+    valor = valor || null;
+    if (c.key === 'fecha' && !valor) { if (!silencioso) plToast('La fecha de carga no puede quedar vacía.', 'error'); return false; }
+  } else if (c.tipo === 'categoria') {
+    valor = valor || null;
+  }
+  if (f === P.borrador) return plCrearDesdeBorrador(valor);
+  return plGuardarCampo(f, c.key, valor);
+}
+
+async function plGuardarCampo(f, key, valor) {
+  const antes = f[key];
+  if (String(antes ?? '') === String(valor ?? '')) return true;
+  P.guardando = true; plRenderFbar();
   try {
-    const resp = await fetchApi(SUPABASE_BASE + '/pagos-crud', {
-      method: 'PUT',
-      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, estado: 'PENDIENTE' }),
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data.ok) throw new Error(data.error || 'HTTP ' + resp.status);
-    cargarPagos();
+    const data = await plApi('PUT', '/pagos-crud', { id: f.id, updated_at: f.updated_at, [key]: valor });
+    plReemplazar(data.pago);
+    P.undo.push({ tipo: 'edicion', id: f.id, idp: f.id_planilla, antes: { [key]: antes }, desc: PL_COL[key].label });
     return true;
   } catch (e) {
-    alertInline('No se pudo revertir: ' + e.message);
+    plManejarError(e);
     return false;
+  } finally {
+    P.guardando = false;
   }
 }
 
-/* ---------- Carga por voz guiada (sin LLM — Web Speech API nativa) ---------- */
+async function plCrearDesdeBorrador(descripcion) {
+  P.guardando = true; plRenderFbar();
+  try {
+    const data = await plApi('POST', '/pagos-crud', { descripcion, fecha: P.hoy });
+    const n = plReemplazar(data.pago);
+    P.borrador = null;
+    P.undo.push({ tipo: 'alta', id: n.id, idp: n.id_planilla });
+    P.ultimaNueva = n.id;
+    P.flujoAlta = String(n.id);
+    P.sel = { id: String(n.id), key: PL_CONFIG.FLUJO_ALTA[0] };
+    P.enfocar = true;
+    plAsegurarVisible(n.id);
+    plToast('Fila ' + n.id_planilla + ' creada. Ahora el importe.');
+    return true;
+  } catch (e) {
+    plManejarError(e);
+    return false;
+  } finally {
+    P.guardando = false;
+  }
+}
 
+// Después de guardar una celda: si es una fila recién creada, pasa al próximo campo del alta
+function plTrasGuardar(selAntes) {
+  if (!selAntes || !P.flujoAlta || String(selAntes.id) !== P.flujoAlta) return;
+  const pasos = PL_CONFIG.FLUJO_ALTA;
+  const i = pasos.indexOf(selAntes.key);
+  if (i >= 0 && i < pasos.length - 1) {
+    P.sel = { id: P.flujoAlta, key: pasos[i + 1] };
+    P.enfocar = true;
+  } else if (i === pasos.length - 1) {
+    P.flujoAlta = null;
+    plToast('Pago cargado.');
+  }
+}
+
+async function plConfirmarYSeguir() {
+  const selAntes = P.sel ? { ...P.sel } : null;
+  const eraBorrador = selAntes && selAntes.id === 'nuevo';
+  const ok = await plConfirmarEditor();
+  if (!ok) { if (!document.getElementById('plIn')) plRenderFbar(); return; }
+  if (!eraBorrador) plTrasGuardar(selAntes);
+  plRenderTodo(); plMarcarSeleccion();
+}
+
+async function plSeleccionar(id, key, { enfocar = false } = {}) {
+  if (P.guardando) return;
+  id = String(id);
+  // Salir de la fila nueva: si tiene descripción se crea; si está vacía se descarta
+  if (P.borrador && id !== 'nuevo') {
+    const inp = document.getElementById('plIn');
+    if (P.sel && P.sel.id === 'nuevo' && inp && inp.value.trim()) {
+      const ok = await plConfirmarEditor({ silencioso: true });
+      if (ok) { plRenderTodo(); plMarcarSeleccion(); }
+      return;
+    }
+    P.borrador = null;
+    P.sel = null;
+    plRenderTabla(); plRenderStatus();
+  }
+  // Como Excel: al moverte a otra celda, lo que estabas escribiendo se guarda
+  if (plEditorModificado()) {
+    const selAntes = P.sel ? { ...P.sel } : null;
+    const ok = await plConfirmarEditor({ silencioso: true });
+    if (!ok) { plToast('Revisá el valor antes de moverte.', 'error'); plRenderFbar(); return; }
+    plTrasGuardar(selAntes);
+    if (P.flujoAlta && P.flujoAlta !== id) P.flujoAlta = null;
+    P.sel = { id, key }; P.confirmandoBorrado = false; P.enfocar = enfocar;
+    plRenderTodo(); plMarcarSeleccion();
+    return;
+  }
+  if (P.flujoAlta && P.flujoAlta !== id) P.flujoAlta = null;
+  P.sel = { id, key }; P.confirmandoBorrado = false; P.enfocar = enfocar;
+  plMarcarSeleccion(); plRenderFbar();
+}
+
+async function plCambiarEstado(f, nuevo) {
+  const previo = plEstado(f);
+  let body;
+  if (nuevo === 'pagado') {
+    if (previo === 'pagado') return;
+    if (f.importe === null || f.importe === undefined) { plToast('Completá el importe antes de marcarlo como pagado.', 'error'); return; }
+    body = { estado: 'REALIZADO' };
+  } else if (nuevo === 'pendiente') {
+    if (previo !== 'pagado' && !f.pateable) return;
+    body = { estado: 'PENDIENTE', pateable: false };
+  } else if (nuevo === 'pateable') {
+    if (f.pateable && previo !== 'pagado') return;
+    body = { estado: 'PENDIENTE', pateable: true };
+  } else return;
+  const antes = { estado: f.estado || 'PENDIENTE', pateable: !!f.pateable, fecha_pago: f.fecha_pago || null };
+  P.guardando = true; plRenderFbar();
+  try {
+    const data = await plApi('PUT', '/pagos-crud', { id: f.id, updated_at: f.updated_at, ...body });
+    const n = plReemplazar(data.pago);
+    P.undo.push({ tipo: 'edicion', id: f.id, idp: f.id_planilla, antes, desc: 'Estado' });
+    if (nuevo === 'pagado') plToast('Fila ' + n.id_planilla + ' marcada como pagada (' + plFmtFecha(n.fecha_pago) + ').');
+  } catch (e) {
+    plManejarError(e);
+  } finally {
+    P.guardando = false;
+  }
+  plRenderTodo(); plMarcarSeleccion();
+}
+
+async function plDuplicar(f) {
+  P.guardando = true; plRenderFbar();
+  try {
+    const data = await plApi('POST', '/pagos-crud', {
+      descripcion: f.descripcion, proveedor_nro: f.proveedor_nro, proveedor_id: f.proveedor_id,
+      importe: f.importe, vencimiento: f.vencimiento, categoria: f.categoria, fecha: P.hoy,
+    });
+    const n = plReemplazar(data.pago);
+    P.undo.push({ tipo: 'alta', id: n.id, idp: n.id_planilla });
+    P.ultimaNueva = n.id;
+    P.sel = { id: String(n.id), key: 'vencimiento' };
+    plAsegurarVisible(n.id);
+    plToast('Fila ' + f.id_planilla + ' duplicada como ' + n.id_planilla + '. Ajustá el vencimiento.');
+  } catch (e) {
+    plManejarError(e);
+  } finally {
+    P.guardando = false;
+  }
+  plRenderTodo(); plMarcarSeleccion();
+}
+
+async function plBorrar(f) {
+  P.guardando = true; plRenderFbar();
+  try {
+    await plApi('DELETE', '/pagos-crud?id=' + encodeURIComponent(f.id));
+    P.filas = P.filas.filter((x) => String(x.id) !== String(f.id));
+    P.undo.push({ tipo: 'baja', id: f.id, idp: f.id_planilla });
+    P.sel = null;
+    plToast('Fila ' + f.id_planilla + ' borrada. Podés deshacerlo.');
+  } catch (e) {
+    plManejarError(e);
+  } finally {
+    P.guardando = false;
+    P.confirmandoBorrado = false;
+  }
+  plRenderTodo();
+}
+
+async function plDeshacer() {
+  const u = P.undo[P.undo.length - 1];
+  if (!u || P.guardando) return;
+  P.guardando = true; plRenderStatus();
+  try {
+    if (u.tipo === 'edicion') {
+      const data = await plApi('PUT', '/pagos-crud', { id: u.id, ...u.antes });
+      plReemplazar(data.pago);
+      plToast('Deshecho: ' + u.desc + ' de la fila ' + u.idp + '.');
+    } else if (u.tipo === 'alta') {
+      await plApi('DELETE', '/pagos-crud?id=' + encodeURIComponent(u.id));
+      P.filas = P.filas.filter((f) => String(f.id) !== String(u.id));
+      if (P.sel && String(P.sel.id) === String(u.id)) P.sel = null;
+      if (P.flujoAlta === String(u.id)) P.flujoAlta = null;
+      plToast('Deshecho: alta de la fila ' + u.idp + '.');
+    } else if (u.tipo === 'baja') {
+      const data = await plApi('POST', '/pagos-crud', { restaurar_id_planilla: u.idp });
+      const n = plReemplazar(data.pago);
+      P.sel = { id: String(n.id), key: 'descripcion' };
+      plAsegurarVisible(n.id);
+      plToast('Fila ' + u.idp + ' recuperada.');
+    }
+    P.undo.pop();
+  } catch (e) {
+    if (e.status === 404 && u.tipo === 'edicion') P.undo.pop();
+    plToast('No se pudo deshacer: ' + e.message, 'error');
+  } finally {
+    P.guardando = false;
+  }
+  plRenderTodo(); plMarcarSeleccion();
+}
+
+/* ---------- Historial ---------- */
+function plLabelCampo(k) {
+  return (PL_COL[k] && PL_COL[k].label) || { pateable: 'Pateable', proveedor_id: 'Proveedor vinculado' }[k] || k;
+}
+function plValorEvento(k, v) {
+  if (v === null || v === undefined || v === '') return 'vacío';
+  if (k === 'importe') return fmtARS(Number(v));
+  if (k === 'pateable') return v ? 'sí' : 'no';
+  if (k === 'estado') return String(v).toUpperCase() === 'REALIZADO' ? 'Pagado' : 'Pendiente';
+  if (k === 'proveedor_id') return 'sí';
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(v))) return plFmtFecha(v);
+  return String(v);
+}
+function plTextoEvento(ev) {
+  const cambios = ev.cambios || {};
+  if (ev.accion === 'baja') return 'Borrada (quedó respaldo)';
+  if (ev.accion === 'alta') {
+    const partes = ['descripcion', 'importe', 'vencimiento', 'estado'].filter((k) => cambios[k] !== undefined)
+      .map((k) => plLabelCampo(k) + ' ' + plValorEvento(k, cambios[k]));
+    return 'Creada' + (partes.length ? ': ' + partes.join(' · ') : '');
+  }
+  return Object.entries(cambios).map(([k, v]) => `${plLabelCampo(k)}: ${plValorEvento(k, v && v.de)} → ${plValorEvento(k, v && v.a)}`).join(' · ');
+}
+function plQuien(email) {
+  if (!email) return 'sistema';
+  return String(email).includes('@') ? String(email).split('@')[0] : String(email);
+}
+
+async function plAbrirHistorial(f) {
+  document.getElementById('plHistTitulo').textContent = 'Historial · fila ' + (f.id_planilla ?? '');
+  const estadoEl = document.getElementById('plHistEstado');
+  const lista = document.getElementById('plHistLista');
+  estadoEl.classList.remove('oculto', 'error');
+  estadoEl.innerHTML = `<div class="spinner"></div><div>Cargando historial…</div>`;
+  lista.innerHTML = '';
+  document.getElementById('modalHistorial').classList.add('show');
+  try {
+    const data = await plApi('GET', '/pagos-crud?historial=' + encodeURIComponent(f.id));
+    const items = (data.eventos || []).map((ev) => {
+      const cuando = new Date(ev.created_at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return `<li><div class="t">${escapeHtml(cuando)} · ${escapeHtml(plQuien(ev.usuario_email))}</div><div class="c">${escapeHtml(plTextoEvento(ev))}</div></li>`;
+    });
+    if (f.origen === 'excel') items.push(`<li><div class="t">antes del 17/10/2026</div><div class="c">Cargada en la hoja PAGOS del Excel maestro</div></li>`);
+    estadoEl.classList.add('oculto');
+    lista.innerHTML = items.length ? items.join('') : '<li>Sin cambios registrados todavía.</li>';
+  } catch (e) {
+    renderError('plHistEstado', 'No se pudo cargar el historial (' + escapeHtml(e.message) + ').', () => plAbrirHistorial(f));
+  }
+}
+
+/* ---------- Más: columnas, pagos fijos, copiar, actualizar ---------- */
+function plAbrirMas(boton) {
+  const p = document.getElementById('plMas');
+  if (!p.hidden) { p.hidden = true; return; }
+  p.innerHTML = '<h3>Columnas visibles</h3>' +
+    PL_COLS.filter((c) => !c.fija).map((c) => `<label><input type="checkbox" id="plcol-${c.key}" data-pl-col="${c.key}" ${P.ocultas.has(c.key) ? '' : 'checked'}> ${c.letra} · ${c.label}</label>`).join('') +
+    '<div class="fixed">ID y Descripción quedan siempre fijas a la izquierda.</div><hr>' +
+    '<button class="pl-btn" type="button" data-pl-mas="actualizar">↻ Actualizar datos</button>' +
+    '<button class="pl-btn" type="button" data-pl-mas="fijos">📅 Cargar pagos fijos del mes</button>' +
+    '<button class="pl-btn" type="button" data-pl-mas="copiar">⧉ Copiar para Excel</button>';
+  p.hidden = false;
+  const r = boton.getBoundingClientRect();
+  p.style.top = Math.min(r.bottom + 6, window.innerHeight - p.offsetHeight - 8) + 'px';
+  p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.right - p.offsetWidth)) + 'px';
+}
+
+async function plCargarFijos() {
+  const confirmado = await confirmarAccion('Se van a crear, sin importe ni vencimiento, los pagos de "Pagos fijos mensuales" (Configuración) que todavía no cargaste este mes. No duplica los que ya generaste.', 'Cargar pagos fijos del mes');
+  if (!confirmado) return;
+  plToast('Cargando pagos fijos…');
+  try {
+    const data = await plApi('POST', '/pagos-fijos-generar', {});
+    if (data.mensaje) plToast(data.mensaje + ' Configuralas en Config.');
+    else plToast(`Creados: ${data.creados.length}${data.omitidos.length ? ' · ya estaban: ' + data.omitidos.length : ''}. Completá importe y vencimiento.`);
+    plMostrarTodo();
+    P.filtro = 'pendientes';
+    await cargarPagos({ silencioso: true });
+  } catch (e) {
+    plToast('No se pudieron cargar los pagos fijos: ' + e.message, 'error');
+  }
+}
+
+function plCopiarParaExcel() {
+  const cols = plColsVisibles(); const filas = plFilasVisibles().filter((f) => f !== P.borrador);
+  const celda = (c, f) => {
+    const v = f[c.key];
+    if (c.tipo === 'estado') return PL_ETIQUETA[plEstado(f)];
+    if (c.tipo === 'importe') return v === null || v === undefined ? '' : String(v).replace('.', ',');
+    if (c.tipo === 'fecha') return v ? plFmtFechaLarga(v) : '';
+    return String(v ?? '').replace(/[\t\n]/g, ' ');
+  };
+  const tsv = [cols.map((c) => c.label).join('\t'), ...filas.map((f) => cols.map((c) => celda(c, f)).join('\t'))].join('\n');
+  const fallback = () => {
+    document.getElementById('modalCopia').classList.add('show');
+    const ta = document.getElementById('plCopia'); ta.value = tsv; ta.focus(); ta.select();
+  };
+  try {
+    navigator.clipboard.writeText(tsv).then(() => plToast('Copiadas ' + filas.length + ' filas. Pegalas en Excel.')).catch(fallback);
+  } catch { fallback(); }
+}
+
+/* ---------- Eventos de la planilla ---------- */
+document.getElementById('plWrap').addEventListener('click', (ev) => {
+  if (ev.target.closest('#plReintentar')) { cargarPagos(); return; }
+  if (ev.target.closest('#plLimpiar')) { plMostrarTodo(); plRenderTodo(); plMarcarSeleccion(); return; }
+  const th = ev.target.closest('[data-pl-orden]');
+  if (th) {
+    const key = th.dataset.plOrden;
+    P.orden = P.orden.key === key ? { key, dir: -P.orden.dir } : { key, dir: PL_COL[key].num || key === 'id_planilla' ? -1 : 1 };
+    plRenderTabla(); plMarcarSeleccion();
+    return;
+  }
+  const td = ev.target.closest('td[data-key]');
+  if (!td || !td.parentElement.dataset.id) return;
+  const id = td.parentElement.dataset.id;
+  const misma = P.sel && String(P.sel.id) === id && P.sel.key === td.dataset.key;
+  plSeleccionar(id, td.dataset.key, { enfocar: misma });
+});
+
+document.getElementById('plFbar').addEventListener('click', async (ev) => {
+  const f = P.sel ? plFila(P.sel.id) : null;
+  if (!f || P.guardando) return;
+  if (ev.target.closest('#plOk')) { plConfirmarYSeguir(); return; }
+  if (ev.target.closest('#plNo')) {
+    if (f === P.borrador) { P.borrador = null; P.sel = null; plRenderTodo(); return; }
+    plRenderFbar(); return;
+  }
+  if (ev.target.closest('#plVaciar')) {
+    const selAntes = { ...P.sel };
+    if (await plGuardarCampo(f, P.sel.key, null)) plTrasGuardar(selAntes);
+    plRenderTodo(); plMarcarSeleccion();
+    return;
+  }
+  const est = ev.target.closest('[data-pl-estado]');
+  if (est && !est.disabled) { plCambiarEstado(f, est.dataset.plEstado); return; }
+  const a = ev.target.closest('[data-pl-acc]');
+  if (!a || a.disabled) return;
+  switch (a.dataset.plAcc) {
+    case 'pagado':         plCambiarEstado(f, 'pagado'); return;
+    case 'pendiente':      plCambiarEstado(f, 'pendiente'); return;
+    case 'duplicar':       plDuplicar(f); return;
+    case 'historial':      plAbrirHistorial(f); return;
+    case 'pedirBorrar':    P.confirmandoBorrado = true; plRenderFbar(); return;
+    case 'cancelarBorrar': P.confirmandoBorrado = false; plRenderFbar(); return;
+    case 'borrar':         plBorrar(f); return;
+    case 'cancelarNueva':  P.borrador = null; P.sel = null; plRenderTodo(); return;
+    case 'soltar':         P.sel = null; P.flujoAlta = null; plMarcarSeleccion(); plRenderFbar(); return;
+  }
+});
+
+// Fecha y categoría se guardan apenas cambian (no hace falta ✓)
+document.getElementById('plFbar').addEventListener('change', async (ev) => {
+  if (ev.target.id !== 'plIn' || !P.sel || P.guardando) return;
+  const c = PL_COL[P.sel.key];
+  if (c.tipo !== 'fecha' && c.tipo !== 'categoria') return;
+  const f = plFila(P.sel.id);
+  if (!f || f === P.borrador) return;
+  if (c.key === 'fecha' && !ev.target.value) { plToast('La fecha de carga no puede quedar vacía.', 'error'); plRenderFbar(); return; }
+  const selAntes = { ...P.sel };
+  if (await plGuardarCampo(f, c.key, ev.target.value || null)) plTrasGuardar(selAntes);
+  plRenderTodo(); plMarcarSeleccion();
+});
+
+document.getElementById('plFbar').addEventListener('keydown', (ev) => {
+  if (ev.target.id !== 'plIn') return;
+  if (ev.key === 'Enter') { ev.preventDefault(); plConfirmarYSeguir(); }
+  if (ev.key === 'Escape') {
+    ev.preventDefault();
+    if (P.sel && P.sel.id === 'nuevo') { P.borrador = null; P.sel = null; plRenderTodo(); return; }
+    plRenderFbar();
+  }
+});
+
+// Teclado en compu: flechas para moverse, Enter para editar, tipear empieza a editar, Ctrl+Z deshace
+document.addEventListener('keydown', (ev) => {
+  if (TAB_ACTUAL !== 'pagos' || !P.cargado || document.querySelector('.modal-overlay.show')) return;
+  if (!document.getElementById('gate').classList.contains('oculto')) return;
+  const enCampo = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement && document.activeElement.tagName);
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z' && !enCampo) { ev.preventDefault(); plDeshacer(); return; }
+  if (enCampo || !P.sel || P.guardando) return;
+  const cols = plColsVisibles(); const filas = plFilasVisibles();
+  let ci = cols.findIndex((c) => c.key === P.sel.key);
+  let ri = filas.findIndex((f) => (f === P.borrador ? 'nuevo' : String(f.id)) === String(P.sel.id));
+  const mov = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[ev.key];
+  if (mov && ri >= 0 && ci >= 0) {
+    ev.preventDefault();
+    ri = Math.min(filas.length - 1, Math.max(0, ri + mov[0]));
+    ci = Math.min(cols.length - 1, Math.max(0, ci + mov[1]));
+    const destino = filas[ri];
+    plSeleccionar(destino === P.borrador ? 'nuevo' : destino.id, cols[ci].key);
+    return;
+  }
+  if (ev.key === 'Enter') { ev.preventDefault(); P.enfocar = true; plRenderFbar(); return; }
+  if (ev.key === 'Escape') { P.sel = null; plMarcarSeleccion(); plRenderFbar(); return; }
+  if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    const inp = document.getElementById('plIn');
+    if (inp && inp.tagName === 'INPUT' && inp.type !== 'date') { ev.preventDefault(); inp.focus(); inp.value = ev.key; }
+  }
+});
+
+// Filtros, búsqueda, categoría
+document.getElementById('plChips').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-pl-filtro]');
+  if (!b) return;
+  P.filtro = b.dataset.plFiltro;
+  plRenderChips(); plRenderTabla(); plRenderStatus(); plMarcarSeleccion();
+});
+document.getElementById('plChips').addEventListener('change', (ev) => {
+  if (ev.target.id !== 'plSelCat') return;
+  P.cat = ev.target.value;
+  plRenderTabla(); plRenderStatus(); plMarcarSeleccion();
+});
+let plQTimer = null;
+document.getElementById('plQ').addEventListener('input', (ev) => {
+  clearTimeout(plQTimer);
+  plQTimer = setTimeout(() => { P.q = ev.target.value; if (P.cargado) { plRenderTabla(); plRenderStatus(); plMarcarSeleccion(); } }, 180);
+});
+
+// Nueva fila: aparece arriba de todo, se guarda cuando confirmás la descripción
+document.getElementById('plBtnNueva').addEventListener('click', async () => {
+  if (!P.cargado || P.guardando) return;
+  if (plEditorModificado() && !(await plConfirmarEditor())) return;
+  P.borrador = { id: 'nuevo', id_planilla: null, fecha: P.hoy, descripcion: '', proveedor_nro: null, vencimiento: null, importe: null, estado: 'PENDIENTE', categoria: null, fecha_pago: null, pateable: false };
+  P.sel = { id: 'nuevo', key: 'descripcion' }; P.enfocar = true; P.confirmandoBorrado = false; P.flujoAlta = null;
+  plRenderTodo();
+  const w = document.getElementById('plWrap'); w.scrollTop = 0; w.scrollLeft = 0;
+  plMarcarSeleccion();
+});
+
+document.getElementById('plStatus').addEventListener('click', (ev) => {
+  if (ev.target.closest('#plUndo')) plDeshacer();
+});
+
+document.getElementById('plBtnMas').addEventListener('click', (ev) => { ev.stopPropagation(); plAbrirMas(ev.currentTarget); });
+document.getElementById('plMas').addEventListener('change', (ev) => {
+  const k = ev.target.dataset.plCol; if (!k) return;
+  if (ev.target.checked) P.ocultas.delete(k); else P.ocultas.add(k);
+  if (P.sel && P.ocultas.has(P.sel.key)) P.sel = null;
+  plGuardarPrefs();
+  if (P.cargado) { plRenderTabla(); plRenderFbar(); plMarcarSeleccion(); }
+});
+document.getElementById('plMas').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-pl-mas]'); if (!b) return;
+  document.getElementById('plMas').hidden = true;
+  if (b.dataset.plMas === 'actualizar') { cargarPagos().then(() => plToast('Planilla actualizada.')); }
+  if (b.dataset.plMas === 'fijos') plCargarFijos();
+  if (b.dataset.plMas === 'copiar') plCopiarParaExcel();
+});
+
+// Ayuda "?" de la planilla + cerrar paneles al tocar afuera
+document.addEventListener('click', (ev) => {
+  const pop = document.getElementById('plPop');
+  const h = ev.target.closest('[data-pl-help]');
+  if (h) {
+    ev.stopPropagation();
+    if (!pop.hidden && pop.dataset.k === h.dataset.plHelp) { pop.hidden = true; return; }
+    pop.innerHTML = PL_AYUDA[h.dataset.plHelp] || '';
+    pop.dataset.k = h.dataset.plHelp;
+    pop.hidden = false;
+    const r = h.getBoundingClientRect();
+    const w = pop.offsetWidth, hh = pop.offsetHeight;
+    let top = r.bottom + 6; if (top + hh > window.innerHeight - 8) top = r.top - hh - 6;
+    pop.style.top = Math.max(8, top) + 'px';
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left - w / 2)) + 'px';
+    return;
+  }
+  if (!ev.target.closest('#plPop')) pop.hidden = true;
+  if (!ev.target.closest('#plMas') && !ev.target.closest('#plBtnMas')) document.getElementById('plMas').hidden = true;
+});
+
+// Al volver a la app (otra pestaña o el celular bloqueado), recarga si pasó un rato: así ves lo que cargó tu socio
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || TAB_ACTUAL !== 'pagos' || !P.cargado) return;
+  if (P.guardando || P.borrador || plEditorModificado()) return;
+  if (Date.now() - P.ultimaCarga > PL_CONFIG.REFRESCO_MS) cargarPagos({ silencioso: true });
+});
+
+/* ---------- Carga por voz guiada (sin LLM — Web Speech API nativa) ---------- */
 const CAMPOS_VOZ = [
   { campo: 'importe', titulo: '💰 Monto', tipo: 'numero' },
   { campo: 'proveedorTexto', titulo: '🏢 Proveedor', tipo: 'texto' },
@@ -1302,7 +2180,7 @@ function hayReconocimientoDeVoz() {
 
 document.getElementById('btnPagoPorVoz').addEventListener('click', () => {
   if (!hayReconocimientoDeVoz()) {
-    alertInline('Tu navegador no soporta carga por voz. Probá con Chrome en Android.');
+    plToast('Tu navegador no soporta carga por voz. Probá con Chrome en Android.', 'error');
     return;
   }
   vozPaso = 0; vozValores = {};
@@ -1326,15 +2204,10 @@ function escucharVoz() {
   vozReconocedor.lang = 'es-AR';
   vozReconocedor.interimResults = false;
   vozReconocedor.maxAlternatives = 1;
-
   document.getElementById('vozEstado').textContent = 'Escuchando…';
-
   vozReconocedor.onresult = (e) => {
     const texto = e.results[0][0].transcript.trim();
-    let valor = texto;
-    if (paso.tipo === 'numero') {
-      valor = interpretarNumeroHablado(texto);
-    }
+    const valor = paso.tipo === 'numero' ? interpretarNumeroHablado(texto) : texto;
     vozValores[paso.campo] = valor;
     document.getElementById('vozEstado').textContent = 'Escuchado:';
     document.getElementById('vozResultado').textContent = paso.tipo === 'numero' ? fmtARS(valor) : valor;
@@ -1347,30 +2220,21 @@ function escucharVoz() {
 }
 
 // Interpreta números hablados en español simples ("cuarenta y cinco mil" -> 45000).
-// Cubre el caso de uso real (montos en pesos redondeados); si no reconoce el patrón,
-// intenta extraer dígitos sueltos como fallback.
 function interpretarNumeroHablado(texto) {
   const limpio = texto.toLowerCase().replace(/\./g, '').replace(/pesos|con centavos|centavos/g, '').trim();
   const soloDigitos = limpio.match(/[\d]+([.,]\d+)?/);
   if (soloDigitos) return Number(soloDigitos[0].replace(',', '.'));
-
   const UNIDADES = { cero:0, un:1, uno:1, una:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9,
     diez:10, once:11, doce:12, trece:13, catorce:14, quince:15, dieciseis:16, diecisiete:17, dieciocho:18, diecinueve:19,
     veinte:20, veintiuno:21, veintidos:22, veintitres:23, veinticuatro:24, veinticinco:25, veintiseis:26, veintisiete:27, veintiocho:28, veintinueve:29,
     treinta:30, cuarenta:40, cincuenta:50, sesenta:60, setenta:70, ochenta:80, noventa:90 };
-  const MULT = { cien:100, cientos:100, mil:1000, millon:1000000, millones:1000000 };
-
-  const palabras = limpio.replace(/-/g, ' ').split(/\s+y\s+|\s+/).filter(Boolean);
+  const MULT = { mil:1000, millon:1000000, millones:1000000 };
+  const palabras = limpio.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/-/g, ' ').split(/\s+y\s+|\s+/).filter(Boolean);
   let total = 0, actual = 0;
   for (const palabra of palabras) {
     if (palabra in UNIDADES) actual += UNIDADES[palabra];
-    else if (palabra === 'cien' || palabra === 'cientos') {
-      actual = (actual === 0 ? 1 : actual) * 100;
-    } else if (palabra === 'mil' || palabra === 'millon' || palabra === 'millones') {
-      actual = actual === 0 ? 1 : actual;
-      total += actual * MULT[palabra];
-      actual = 0;
-    }
+    else if (palabra === 'cien' || palabra === 'cientos' || palabra === 'ciento') actual = (actual === 0 ? 1 : actual) * 100;
+    else if (palabra in MULT) { actual = actual === 0 ? 1 : actual; total += actual * MULT[palabra]; actual = 0; }
   }
   return total + actual;
 }
@@ -1379,19 +2243,92 @@ document.getElementById('btnVozMic').addEventListener('click', escucharVoz);
 document.getElementById('btnVozRepetir').addEventListener('click', escucharVoz);
 
 document.getElementById('btnVozSiguiente').addEventListener('click', () => {
-  if (vozPaso < CAMPOS_VOZ.length - 1) {
-    vozPaso++;
-    mostrarPasoVoz();
-  } else {
-    // último paso: cerrar el modal de voz y precargar el modal de alta para que confirme antes de guardar
-    document.getElementById('modalVoz').classList.remove('show');
-    abrirModalPago(null).then(() => {
-      if (vozValores.importe) document.getElementById('pgImporte').value = vozValores.importe;
-      if (vozValores.proveedorTexto) document.getElementById('pgProveedorTexto').value = vozValores.proveedorTexto;
-      if (vozValores.descripcion) document.getElementById('pgDescripcion').value = vozValores.descripcion;
-    });
-  }
+  if (vozPaso < CAMPOS_VOZ.length - 1) { vozPaso++; mostrarPasoVoz(); return; }
+  document.getElementById('modalVoz').classList.remove('show');
+  plCrearPorVoz({ ...vozValores });
 });
+
+async function plCrearPorVoz(v) {
+  const body = {
+    descripcion: v.descripcion || null,
+    proveedor_nro: v.proveedorTexto || null,
+    importe: Number(v.importe) > 0 ? Number(v.importe) : null,
+    fecha: P.hoy,
+  };
+  if (!body.descripcion && !body.proveedor_nro) { plToast('Faltó la descripción o el proveedor.', 'error'); return; }
+  if (!P.cargado) await cargarPagos();
+  P.guardando = true;
+  try {
+    const data = await plApi('POST', '/pagos-crud', body);
+    const n = plReemplazar(data.pago);
+    P.undo.push({ tipo: 'alta', id: n.id, idp: n.id_planilla });
+    P.ultimaNueva = n.id;
+    P.sel = { id: String(n.id), key: 'vencimiento' };
+    plAsegurarVisible(n.id);
+    plToast('Fila ' + n.id_planilla + ' cargada por voz. Revisá y poné el vencimiento.');
+  } catch (e) {
+    plManejarError(e);
+  } finally {
+    P.guardando = false;
+  }
+  plRenderTodo(); plMarcarSeleccion();
+}
+
+/* ---------- Filas de pago para Alertas (llevan a la planilla) ---------- */
+function renderFilaPago(p) {
+  const realizado = String(p.estado || '').toUpperCase() === 'REALIZADO';
+  const hoy = P.hoy || plHoyAR();
+  const vencido = !realizado && p.vencimiento && p.vencimiento < hoy;
+  const faltaCompletar = !realizado && (p.importe === null || p.importe === undefined || p.importe === '' || !p.vencimiento);
+  let badge = '<span class="badge ok">Pagado</span>';
+  if (!realizado) {
+    if (p.pateable) badge = '<span class="badge" style="background:rgba(168,158,140,.15); color:var(--text-dim);">Pateable</span>';
+    else if (faltaCompletar) badge = '<span class="badge" style="background:rgba(212,161,42,.2); color:var(--warn);">⚠ Completar</span>';
+    else badge = vencido ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Pendiente</span>';
+  }
+  const sinImporte = p.importe === null || p.importe === undefined || p.importe === '';
+  return `
+    <div class="fila-alerta">
+      <div class="ir" data-ir-fila="${escapeHtml(p.id)}" style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;" title="Ir a la fila en la planilla">
+        <div style="min-width:0;">
+          <div style="font-size:13.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.descripcion || p.proveedor_nro || 'Sin descripción')}</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${p.id_planilla ? 'ID ' + escapeHtml(p.id_planilla) + ' · ' : ''}${escapeHtml(p.proveedor_nro || '—')} · ${escapeHtml(p.categoria || 'Sin categoría')} · vence ${plFmtFechaLarga(p.vencimiento) || '—'}</div>
+        </div>
+        <div style="text-align:right; flex:none;">
+          <div class="mono" style="font-size:14px; color:var(--amber);">${sinImporte ? '—' : fmtARS(Number(p.importe))}</div>
+          <div style="margin-top:4px;">${badge}</div>
+        </div>
+      </div>
+      ${plPuedeMarcar() && !realizado && !sinImporte ? `<button class="btn secundario" type="button" data-marcar-pagado="${escapeHtml(p.id)}" style="width:100%; margin-top:8px; padding:8px; font-size:12px;">✓ Marcar como pagado</button>` : ''}
+    </div>`;
+}
+
+function plIrAFila(id) {
+  P.selPendiente = String(id);
+  irATab('pagos');
+}
+
+document.getElementById('tab-alertas').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-marcar-pagado]');
+  if (btn) {
+    const ok = await confirmarAccion('Se va a registrar como pagado hoy (' + plFmtFechaLarga(P.hoy) + ').', 'Marcar como pagado');
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      const data = await plApi('PUT', '/pagos-crud', { id: btn.dataset.marcarPagado, estado: 'REALIZADO' });
+      if (P.cargado) plReemplazar(data.pago);
+      plToast('Marcado como pagado.');
+      cargarAlertas();
+    } catch (e) {
+      btn.disabled = false;
+      plToast('No se pudo marcar como pagado: ' + e.message, 'error');
+    }
+    return;
+  }
+  const ir = ev.target.closest('[data-ir-fila]');
+  if (ir) plIrAFila(ir.dataset.irFila);
+});
+
 let PROV_CACHE = []; // para poder abrir el modal de edición sin re-pedir el dato
 
 async function cargarProveedores() {
@@ -1643,6 +2580,7 @@ const LABELS_PERMISOS = {
   ver_caja: 'Ver Caja hoy',
   gestionar_proveedores: 'Gestionar proveedores (alta/edición)',
   marcar_pagado: 'Marcar pagos como pagados',
+  borrar_pagos: 'Borrar pagos (queda respaldo)',
 };
 
 async function cargarConfig() {
