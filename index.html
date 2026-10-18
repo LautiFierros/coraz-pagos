@@ -216,8 +216,9 @@ body { padding-bottom: 0; min-height: 0; overflow: hidden; }
 #app > header { position: relative; flex: none; }
 #app > main { flex: 1; min-height: 0; overflow-y: auto; width: 100%; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 nav.tabbar { position: static; flex: none; }
-#app > main.planilla { max-width: 1180px; overflow: hidden; display: flex; flex-direction: column; padding: 10px 12px; }
-#tab-pagos:not(.oculto) { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+/* La pestaña Pagos scrollea como página: KPIs y filtros quedan arriba y la planilla ocupa casi toda la pantalla. */
+#app > main.planilla { max-width: 1180px; padding: 10px 12px 14px; }
+#tab-pagos:not(.oculto) { display: flex; flex-direction: column; gap: 9px; }
 
 /* ============================================================
    PLANILLA DE PAGOS (tipo Excel)
@@ -268,7 +269,8 @@ nav.tabbar { position: static; flex: none; }
 .pl-selcat { flex: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 99px; padding: 6px 10px; font-size: 12px; color: var(--text-dim); max-width: 190px; font-family: inherit; }
 
 /* Barra de fórmula */
-.pl-fbar { flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.pl-fbar { flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; display: flex; flex-direction: column; gap: 8px;
+  position: sticky; top: 0; z-index: 8; box-shadow: 0 6px 14px -6px rgba(0,0,0,.6); } /* queda fija arriba al bajar por la planilla */
 .pl-fmain { display: flex; gap: 8px; align-items: center; min-height: 38px; }
 .pl-ref { flex: none; font: 600 12px var(--f-num); color: var(--amber); background: var(--pl-amber-soft); border: 1px solid var(--amber-dim); border-radius: 6px; padding: 5px 7px; min-width: 58px; text-align: center; }
 .pl-fx { flex: none; font: italic 600 13px var(--f-num); color: var(--pl-mute); }
@@ -296,7 +298,10 @@ nav.tabbar { position: static; flex: none; }
 .pl-guardando .spinner { width: 14px; height: 14px; }
 
 /* Tabla */
-.pl-wrap { flex: 1; min-height: 120px; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overscroll-behavior: contain; position: relative; }
+/* Alto de la planilla: pantalla menos encabezado, pestañas y barra fx (~12 filas en el celular). Para cambiarlo, tocar --pl-alto-tabla. */
+:root { --pl-alto-tabla: calc(100vh - 185px); }
+@supports (height: 100dvh) { :root { --pl-alto-tabla: calc(100dvh - 185px); } }
+.pl-wrap { height: var(--pl-alto-tabla); min-height: 380px; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overscroll-behavior-x: contain; position: relative; }
 .pl-wrap .estado { min-height: 100%; }
 .pl-tabla { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 13px; width: max-content; min-width: 100%; }
 .pl-tabla th, .pl-tabla td { border-right: 1px solid var(--pl-grid); border-bottom: 1px solid var(--pl-grid); padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
@@ -814,7 +819,7 @@ nav.tabbar { position: static; flex: none; }
 /* ============================================================
    CONFIG
    ============================================================ */
-const APP_VERSION = '2026-10-17.1'; // planilla tipo Excel; Pagos deja de leerse del Excel
+const APP_VERSION = '2026-10-17.3'; // planilla tipo Excel; Pagos deja de leerse del Excel
 const SUPABASE_URL = 'https://kvewsxrfogosjwehookj.supabase.co';
 const SUPABASE_BASE = SUPABASE_URL + '/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXdzeHJmb2dvc2p3ZWhvb2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3OTA2OTksImV4cCI6MjEwMTM2NjY5OX0.6oyDPFG_8hAAULXCUn6uO7C-abxMSOxxMFFJ_xBFZHY';
@@ -1643,7 +1648,25 @@ function plRenderStatus() {
 function plRenderTodo() {
   if (!P.cargado) return;
   plRenderKpis(); plRenderChips(); plRenderTabla(); plRenderFbar(); plRenderStatus();
+  plAjustarAlto();
 }
+
+// Alto de la planilla = lo que queda de pantalla con la barra fx fija arriba y la barra de estado abajo,
+// así al bajar hasta el final se ven la fila de títulos, ~12 pagos y los totales sin que nada tape nada.
+// Se calcula como si la barra fx tuviera la fila de acciones abierta, para que no salte al tocar una celda.
+function plAjustarAlto() {
+  const main = document.querySelector('#app > main');
+  const fbar = document.getElementById('plFbar');
+  const acc = document.getElementById('plAcc');
+  const status = document.getElementById('plStatus');
+  const wrap = document.getElementById('plWrap');
+  if (!main || !main.classList.contains('planilla') || !fbar.offsetHeight) return;
+  const GAP = 9, PAD_ABAJO = 14, FILA_ACCIONES = 42;
+  const fbarAlto = fbar.offsetHeight + (acc.hidden ? FILA_ACCIONES : 0);
+  const alto = main.clientHeight - fbarAlto - status.offsetHeight - GAP * 2 - PAD_ABAJO;
+  wrap.style.height = Math.max(380, Math.round(alto)) + 'px';
+}
+window.addEventListener('resize', () => { if (TAB_ACTUAL === 'pagos') plAjustarAlto(); });
 
 // Cambio de selección liviano: mueve clases sin redibujar la tabla
 function plMarcarSeleccion() {
