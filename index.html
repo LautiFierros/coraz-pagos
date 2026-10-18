@@ -303,7 +303,7 @@ nav.tabbar { position: static; flex: none; }
 @supports (height: 100dvh) { :root { --pl-alto-tabla: calc(100dvh - 185px); } }
 .pl-wrap { height: var(--pl-alto-tabla); min-height: 380px; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overscroll-behavior-x: contain; position: relative; }
 .pl-wrap .estado { min-height: 100%; }
-.pl-tabla { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 13px; width: max-content; min-width: 100%; }
+.pl-tabla { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 13px; width: max-content; } /* sin estirar: cada columna mide exactamente su ancho */
 .pl-tabla th, .pl-tabla td { border-right: 1px solid var(--pl-grid); border-bottom: 1px solid var(--pl-grid); padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .pl-tabla thead th { position: sticky; top: 0; z-index: 3; background: var(--panel-2); height: 42px; padding: 0; border-bottom: 1px solid var(--line); }
 .pl-th { width: 100%; height: 100%; background: none; border: 0; color: inherit; padding: 4px 8px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; text-align: left; cursor: pointer; font-family: inherit; }
@@ -312,6 +312,11 @@ nav.tabbar { position: static; flex: none; }
 .pl-th .o { color: var(--amber); font-size: 9px; }
 .pl-th.num { align-items: flex-end; }
 .pl-th:hover .n { color: var(--text); }
+/* Manija para cambiar el ancho de la columna (borde derecho del título), como en Excel */
+.pl-resize { position: absolute; top: 0; right: 0; width: 14px; height: 100%; cursor: col-resize; touch-action: none; z-index: 5; }
+.pl-resize::after { content: ""; position: absolute; top: 9px; bottom: 9px; right: 5px; width: 2px; border-radius: 2px; background: var(--line); }
+.pl-resize:hover::after, .pl-resize.activo::after { background: var(--amber); }
+@media (pointer: coarse) { .pl-resize { width: 24px; } .pl-resize::after { right: 9px; } }
 .pl-tabla tbody td { height: 42px; background: var(--panel); cursor: cell; }
 .pl-tabla tbody tr:hover td { background: var(--pl-row-hover); }
 .pl-tabla td.fija, .pl-tabla th.fija { position: sticky; }
@@ -603,6 +608,7 @@ nav.tabbar { position: static; flex: none; }
         <li><b style="color:var(--text)">Duplicar</b> copia la fila (útil para cuotas). <b style="color:var(--text)">Borrar</b> pide confirmación y deja respaldo; con Deshacer se recupera con el mismo ID.</li>
         <li><b style="color:var(--text)">Deshacer</b> vuelve atrás tus últimos cambios de esta sesión. <b style="color:var(--text)">Historial</b> muestra quién cambió qué y cuándo en cada fila.</li>
         <li><b style="color:var(--text)">Filtros rápidos</b> (Pendientes, Vencidos, Próx. 7 días, Este mes, Pagados), buscador y categoría. Tocando el título de una columna se ordena.</li>
+        <li><b style="color:var(--text)">Ancho de columnas:</b> arrastrá el borde derecho del título de una columna (con el dedo o el mouse). Se recuerda en ese dispositivo. Doble toque en el borde la vuelve a su ancho original; en "Más" las restablecés todas.</li>
         <li><b style="color:var(--text)">Más</b>: elegir columnas visibles (se recuerda en ese dispositivo), cargar los pagos fijos del mes, copiar lo que ves para pegarlo en Excel y actualizar los datos.</li>
         <li><b style="color:var(--text)">🎙️</b> carga un pago dictando monto, proveedor y descripción.</li>
         <li>La raya de color a la izquierda del ID indica el estado: ámbar pendiente, rojo vencido, verde pagado, gris pateable.</li>
@@ -819,7 +825,7 @@ nav.tabbar { position: static; flex: none; }
 /* ============================================================
    CONFIG
    ============================================================ */
-const APP_VERSION = '2026-10-17.3'; // planilla tipo Excel; Pagos deja de leerse del Excel
+const APP_VERSION = '2026-10-17.4'; // planilla tipo Excel; Pagos deja de leerse del Excel
 const SUPABASE_URL = 'https://kvewsxrfogosjwehookj.supabase.co';
 const SUPABASE_BASE = SUPABASE_URL + '/functions/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXdzeHJmb2dvc2p3ZWhvb2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3OTA2OTksImV4cCI6MjEwMTM2NjY5OX0.6oyDPFG_8hAAULXCUn6uO7C-abxMSOxxMFFJ_xBFZHY';
@@ -1182,6 +1188,9 @@ const PL_CONFIG = {
   ANCHO_CELULAR: 640,
   OCULTAS_EN_CELULAR: ['categoria', 'fecha', 'fecha_pago'],
   CLAVE_PREFS: 'coraz-pagos-columnas-v1',
+  CLAVE_ANCHOS: 'coraz-pagos-anchos-v1',
+  ANCHO_MIN: 40,
+  ANCHO_MAX: 600,
   REFRESCO_MS: 60000,                       // al volver a la app, recarga si pasó más de esto
   FLUJO_ALTA: ['importe', 'vencimiento', 'categoria'],  // orden de carga de una fila nueva
   CATEGORIAS: [
@@ -1242,6 +1251,7 @@ const P = {
   q: '',
   cat: '',
   ocultas: new Set(),
+  anchos: {},               // anchos elegidos por el usuario (px por columna), guardados en este dispositivo
   prefsListas: false,
   undo: [],                  // cambios propios de esta sesión, para Deshacer
   confirmandoBorrado: false,
@@ -1307,6 +1317,14 @@ function plIniciarPrefs() {
   let guardadas = null;
   try { const v = localStorage.getItem(PL_CONFIG.CLAVE_PREFS); guardadas = v ? JSON.parse(v) : null; } catch { guardadas = null; }
   P.ocultas = new Set(Array.isArray(guardadas) ? guardadas : (window.innerWidth <= PL_CONFIG.ANCHO_CELULAR ? PL_CONFIG.OCULTAS_EN_CELULAR : []));
+  try {
+    const a = JSON.parse(localStorage.getItem(PL_CONFIG.CLAVE_ANCHOS) || '{}');
+    P.anchos = {};
+    if (a && typeof a === 'object') Object.entries(a).forEach(([k, v]) => { if (PL_COL[k] && Number(v) >= PL_CONFIG.ANCHO_MIN) P.anchos[k] = Math.min(PL_CONFIG.ANCHO_MAX, Number(v)); });
+  } catch { P.anchos = {}; }
+}
+function plGuardarAnchos() {
+  try { localStorage.setItem(PL_CONFIG.CLAVE_ANCHOS, JSON.stringify(P.anchos)); } catch { /* sin storage: dura hasta recargar */ }
 }
 function plGuardarPrefs() {
   try { localStorage.setItem(PL_CONFIG.CLAVE_PREFS, JSON.stringify([...P.ocultas])); } catch { /* sin storage: no pasa nada */ }
@@ -1482,7 +1500,7 @@ function plRenderChips() {
    </select>`;
 }
 
-function plAnchoCss(c) { return typeof c.ancho === 'number' ? c.ancho + 'px' : c.ancho; }
+function plAnchoCss(c) { const base = typeof c.ancho === 'number' ? c.ancho + 'px' : c.ancho; return `var(--plw-${c.key}, ${base})`; }
 
 function plRenderTabla() {
   const cols = plColsVisibles();
@@ -1496,7 +1514,7 @@ function plRenderTabla() {
   const thead = '<thead><tr>' + cols.map((c) => {
     const ord = P.orden.key === c.key ? `<span class="o">${P.orden.dir === 1 ? '▲' : '▼'}</span>` : '';
     const fija = c.fija ? `class="fija ${c.key === ultFija ? 'ult' : ''}" style="left:${lefts[c.key]}"` : '';
-    return `<th ${fija} scope="col"><button class="pl-th ${c.num ? 'num' : ''}" type="button" data-pl-orden="${c.key}" aria-label="Ordenar por ${c.label}"><span class="l">${c.letra}</span><span class="n">${c.label}${ord}</span></button></th>`;
+    return `<th ${fija} scope="col"><button class="pl-th ${c.num ? 'num' : ''}" type="button" data-pl-orden="${c.key}" aria-label="Ordenar por ${c.label}"><span class="l">${c.letra}</span><span class="n">${c.label}${ord}</span></button><span class="pl-resize" data-pl-resize="${c.key}" title="Arrastrá para cambiar el ancho · doble toque: ancho original"></span></th>`;
   }).join('') + '</tr></thead>';
 
   let tbody;
@@ -1520,7 +1538,9 @@ function plRenderTabla() {
       }).join('') + '</tr>';
     }).join('') + '</tbody>';
   }
-  document.getElementById('plWrap').innerHTML = `<table class="pl-tabla">${colgroup}${thead}${tbody}</table>`;
+  // Ancho total = suma exacta de las columnas visibles: así cada columna mide lo que elegiste (no se estira según el texto)
+  const varsAncho = Object.entries(P.anchos).map(([k, v]) => `--plw-${k}:${v}px`).concat(`width:calc(${cols.map(plAnchoCss).join(' + ')})`).join(';');
+  document.getElementById('plWrap').innerHTML = `<table class="pl-tabla" style="${varsAncho}">${colgroup}${thead}${tbody}</table>`;
   P.ultimaNueva = null;
 }
 
@@ -1966,7 +1986,8 @@ function plAbrirMas(boton) {
   if (!p.hidden) { p.hidden = true; return; }
   p.innerHTML = '<h3>Columnas visibles</h3>' +
     PL_COLS.filter((c) => !c.fija).map((c) => `<label><input type="checkbox" id="plcol-${c.key}" data-pl-col="${c.key}" ${P.ocultas.has(c.key) ? '' : 'checked'}> ${c.letra} · ${c.label}</label>`).join('') +
-    '<div class="fixed">ID y Descripción quedan siempre fijas a la izquierda.</div><hr>' +
+    '<div class="fixed">ID y Descripción quedan siempre fijas a la izquierda. Para cambiar el ancho de cualquier columna, arrastrá el borde derecho de su título.</div>' +
+    '<button class="pl-btn" type="button" data-pl-mas="anchos">↔ Volver a los anchos originales</button><hr>' +
     '<button class="pl-btn" type="button" data-pl-mas="actualizar">↻ Actualizar datos</button>' +
     '<button class="pl-btn" type="button" data-pl-mas="fijos">📅 Cargar pagos fijos del mes</button>' +
     '<button class="pl-btn" type="button" data-pl-mas="copiar">⧉ Copiar para Excel</button>';
@@ -2058,6 +2079,39 @@ document.getElementById('plFbar').addEventListener('click', async (ev) => {
     case 'cancelarNueva':  P.borrador = null; P.sel = null; plRenderTodo(); return;
     case 'soltar':         P.sel = null; P.flujoAlta = null; plMarcarSeleccion(); plRenderFbar(); return;
   }
+});
+
+// Cambiar el ancho de una columna arrastrando el borde del título (mouse o dedo). Doble toque = ancho original.
+let plDrag = null;
+document.getElementById('plWrap').addEventListener('pointerdown', (ev) => {
+  const h = ev.target.closest('[data-pl-resize]');
+  if (!h) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const th = h.closest('th');
+  plDrag = { key: h.dataset.plResize, x0: ev.clientX, w0: th.getBoundingClientRect().width, w: null, h, tabla: th.closest('table') };
+  h.classList.add('activo');
+  try { h.setPointerCapture(ev.pointerId); } catch { /* sin captura: igual funciona dentro de la tabla */ }
+});
+document.getElementById('plWrap').addEventListener('pointermove', (ev) => {
+  if (!plDrag) return;
+  ev.preventDefault();
+  plDrag.w = Math.round(Math.min(PL_CONFIG.ANCHO_MAX, Math.max(PL_CONFIG.ANCHO_MIN, plDrag.w0 + ev.clientX - plDrag.x0)));
+  plDrag.tabla.style.setProperty('--plw-' + plDrag.key, plDrag.w + 'px');
+});
+function plFinDrag() {
+  if (!plDrag) return;
+  plDrag.h.classList.remove('activo');
+  if (plDrag.w) { P.anchos[plDrag.key] = plDrag.w; plGuardarAnchos(); }
+  plDrag = null;
+}
+document.getElementById('plWrap').addEventListener('pointerup', plFinDrag);
+document.getElementById('plWrap').addEventListener('pointercancel', plFinDrag);
+document.getElementById('plWrap').addEventListener('dblclick', (ev) => {
+  const h = ev.target.closest('[data-pl-resize]');
+  if (!h) return;
+  delete P.anchos[h.dataset.plResize];
+  plGuardarAnchos(); plRenderTabla(); plMarcarSeleccion();
+  plToast('Ancho original de ' + PL_COL[h.dataset.plResize].label + '.');
 });
 
 // Fecha y categoría se guardan apenas cambian (no hace falta ✓)
@@ -2157,6 +2211,7 @@ document.getElementById('plMas').addEventListener('click', (ev) => {
   if (b.dataset.plMas === 'actualizar') { cargarPagos().then(() => plToast('Planilla actualizada.')); }
   if (b.dataset.plMas === 'fijos') plCargarFijos();
   if (b.dataset.plMas === 'copiar') plCopiarParaExcel();
+  if (b.dataset.plMas === 'anchos') { P.anchos = {}; plGuardarAnchos(); if (P.cargado) { plRenderTabla(); plMarcarSeleccion(); } plToast('Columnas con su ancho original.'); }
 });
 
 // Ayuda "?" de la planilla + cerrar paneles al tocar afuera
